@@ -39,7 +39,7 @@ skills=(
 )
 
 for skill in "${skills[@]}"; do
-    test -f "$repository/packages/opencode/skills/$skill/SKILL.md"
+    test -f "$repository/packages/cli/skills/$skill/SKILL.md"
 done
 
 dist_dir="$work_dir/dist"

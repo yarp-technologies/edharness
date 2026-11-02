@@ -27,14 +27,19 @@ jobs:
       - name: Install Linux packaging tools
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends rpm
 
-      - name: Prepare desktop release version
-        working-directory: packages/desktop
+      - name: Prepare release version
         shell: bash
-        env:
-          OPENCODE_CHANNEL: prod
-          OPENCODE_VERSION: ${{ inputs.tag || github.ref_name }}
         run: |
-          OPENCODE_VERSION="${OPENCODE_VERSION#v}" bun ./scripts/prepare.ts
+          release_tag="${{ inputs.tag || github.ref_name }}"
+          echo "OPENCODE_VERSION=${release_tag#v}" >> "$GITHUB_ENV"
+
+      - name: Build bundled CLI
+        working-directory: packages/cli
+        run: bun run build --skip-install
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+          OPENCODE_TARGET: linux-x64-baseline
 
       - name: Build desktop
         working-directory: packages/desktop
@@ -49,7 +54,7 @@ jobs:
 
       - name: Package desktop
         working-directory: packages/desktop
-        run: bun run package:linux -- --publish never
+        run: bun run electron-builder --linux --config electron-builder.config.ts --publish never
         env:
           OPENCODE_CHANNEL: prod
           OPENCODE_UPDATE_OWNER: yarp-technologies
@@ -92,20 +97,20 @@ jobs:
           ref: ${{ github.sha }}
 
       - uses: ./.github/actions/setup-bun
-        with:
-          install-bun-version: "1.4.0"
 
-      - name: Prepare desktop release version
-        working-directory: packages/desktop
-        shell: pwsh
-        env:
-          OPENCODE_CHANNEL: prod
-          OPENCODE_VERSION: ${{ inputs.tag || github.ref_name }}
+      - name: Prepare release version
+        shell: bash
         run: |
-          if ($env:OPENCODE_VERSION.StartsWith("v")) {
-            $env:OPENCODE_VERSION = $env:OPENCODE_VERSION.Substring(1)
-          }
-          bun ./scripts/prepare.ts
+          release_tag="${{ inputs.tag || github.ref_name }}"
+          echo "OPENCODE_VERSION=${release_tag#v}" >> "$GITHUB_ENV"
+
+      - name: Build bundled CLI
+        working-directory: packages/cli
+        run: bun run build --skip-install
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+          OPENCODE_TARGET: windows-x64-baseline
 
       - name: Build desktop
         working-directory: packages/desktop
@@ -120,7 +125,7 @@ jobs:
 
       - name: Package desktop
         working-directory: packages/desktop
-        run: bun run package:win -- --publish never
+        run: bun run electron-builder --win --config electron-builder.config.ts --publish never
         env:
           OPENCODE_CHANNEL: prod
           OPENCODE_UPDATE_OWNER: yarp-technologies

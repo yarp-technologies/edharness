@@ -1,9 +1,26 @@
 import { app } from "electron"
 
-type Channel = "dev" | "beta" | "prod"
-const raw = import.meta.env.OPENCODE_CHANNEL
-export const CHANNEL: Channel = raw === "dev" || raw === "beta" || raw === "prod" ? raw : "dev"
+type Channel = "local" | "dev" | "beta" | "prod"
 
-export const UPDATER_ENABLED = app.isPackaged && CHANNEL !== "dev"
-export const UPDATER_ALLOW_PRERELEASE = import.meta.env.OPENCODE_ALLOW_PRERELEASE === "true"
-export const UPDATER_CHANNEL = import.meta.env.OPENCODE_UPDATE_CHANNEL || "latest"
+const raw = import.meta.env.OPENCODE_CHANNEL
+
+export const CHANNEL: Channel = raw === "local" || raw === "dev" || raw === "beta" || raw === "prod" ? raw : "dev"
+
+export const VERSION = app.isPackaged ? app.getVersion() : (process.env.OPENCODE_VERSION ?? app.getVersion())
+
+const appNames: Record<string, string> = {
+  dev: "YarpNeuro Dev",
+  beta: "YarpNeuro Beta",
+  prod: "YarpNeuro",
+}
+
+const appIDs: Record<string, string> = {
+  dev: "ai.opencode.desktop.dev",
+  beta: "ai.opencode.desktop.beta",
+  prod: "ai.opencode.desktop",
+}
+
+// Local renderer/server mode keeps the dev application identity.
+export const APP_NAME = app.isPackaged ? appNames[CHANNEL] : "YarpNeuro Dev"
+
+export const APP_ID = app.isPackaged ? appIDs[CHANNEL] : "ai.opencode.desktop.dev"

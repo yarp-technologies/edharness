@@ -3,16 +3,16 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nix-bun.url = "github:ryoppippi/nix-bun/75a3e6f79693130abc113ddf0cfd300f0fe31105";
   };
 
   outputs =
-    { self, nixpkgs, ... }:
+    { self, nixpkgs, nix-bun, ... }:
     let
       systems = [
         "aarch64-linux"
         "x86_64-linux"
         "aarch64-darwin"
-        "x86_64-darwin"
       ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
       rev = self.shortRev or self.dirtyShortRev or "dirty";
@@ -21,8 +21,8 @@
       devShells = forEachSystem (pkgs: {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            bun
-            nodejs_20
+            nix-bun.packages.${pkgs.stdenv.hostPlatform.system}."1.4.4"
+            nodejs
             pkg-config
             openssl
             git

@@ -2,6 +2,7 @@
 node_modules
 .worktrees
 .sst
+.wrangler
 .env
 .env.local
 .idea
@@ -11,8 +12,10 @@ node_modules
 playground
 tmp
 dist
+dist-node
 ts-dist
 .turbo
+.typecheck-profiles
 **/.serena
 .serena/
 **/.omo
@@ -24,11 +27,16 @@ Session.vim
 a.out
 target
 .scripts
+.cache
 .direnv/
 
 # Local dev files
 opencode-dev
-UPCOMING_CHANGELOG.md
+!/.opencode/skills/opencode-dev/
+RELEASE_REVIEW.md
 logs/
 *.bun-build
+*.sqlite-shm
+*.sqlite-wal
 tsconfig.tsbuildinfo
+/artifacts/
