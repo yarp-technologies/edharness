@@ -21,6 +21,9 @@ ts-dist
 **/.omo
 .omo/
 /result
+/bin/edharness
+/bin/edharness.exe
+/bin/skills
 refs
 Session.vim
 /opencode.json
