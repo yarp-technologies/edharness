@@ -9,10 +9,12 @@ import { resolveThemeColors } from "./resolve"
 import { DEFAULT_THEMES, type Theme, type ThemeV1Json } from "./v1"
 import opencode from "./assets/v2/opencode.json" with { type: "json" }
 import opencode2 from "./assets/v2/opencode2.json" with { type: "json" }
+import edharness from "./assets/v2/edharness.json" with { type: "json" }
 
 export { DEFAULT_THEMES, type Theme, type ThemeV1Json } from "./v1"
 
 export type ThemeDocumentSource = Record<string, unknown>
+export const DEFAULT_THEME_NAME = "edharness"
 
 let customThemes: Record<string, ThemeDocumentSource> = {}
 let systemTheme: ThemeDocumentSource | undefined
@@ -22,6 +24,13 @@ let opencodeTheme: (ThemeDocument & {
   readonly light: ModeDefinition
   readonly dark: ModeDefinition
 }) | undefined
+
+let edharnessTheme: ThemeDocument | undefined
+
+export function getEdHarnessTheme() {
+  edharnessTheme ??= parseThemeDocument(edharness, DEFAULT_THEME_NAME)
+  return edharnessTheme
+}
 
 export function getOpenCodeTheme() {
   if (opencodeTheme) return opencodeTheme
@@ -44,11 +53,12 @@ function listThemes(): Record<string, ThemeDocumentSource> {
   const themes: Record<string, ThemeDocumentSource> = {
     ...DEFAULT_THEMES,
     opencode: getOpenCodeTheme(),
+    edharness: getEdHarnessTheme(),
     ...customThemes,
   }
   return {
     ...themes,
-    system: systemTheme ?? themes.system ?? themes.opencode,
+    system: systemTheme ?? themes.system ?? themes[DEFAULT_THEME_NAME],
   }
 }
 

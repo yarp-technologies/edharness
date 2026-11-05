@@ -53,9 +53,11 @@ NC='\033[0m' # No Color
 
 usage() {
     cat <<EOF
-YarpNeuro Installer
+EdHarness Installer
 
 Usage: install.sh [options]
+
+Use --binary to install a built EdHarness CLI. Without it, this script installs upstream OpenCode.
 
 Options:
     -h, --help              Display this help message
@@ -337,7 +339,7 @@ install_default_skills() {
                     mv "$staging" "$target"
                 done
             ' opencode-skills-bundle >>"$log_file" 2>&1 </dev/null &
-        print_message info "Default skills installation started in background from the YarpNeuro distribution. Log: $log_file"
+        print_message info "Default skills installation started in background from the bundled distribution. Log: $log_file"
         return 0
     fi
 
@@ -591,13 +593,21 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
+if [ -n "$binary_path" ]; then
+    echo -e "${MUTED}█▀▀ █▀▄ ${NC}█ █ ▄▀▄ █▀▄ █▄█ █▀▀ ▄▀▀ ▄▀▀"
+    echo -e "${MUTED}█▀▀ █ █ ${NC}█▀█ █▀█ █▀▄ █ █ █▀▀ ▀▀▄ ▀▀▄"
+    echo -e "${MUTED}▀▀▀ ▀▀  ${NC}▀ ▀ ▀ ▀ ▀ ▀ ▀ ▀ ▀▀▀ ▀▀  ▀▀ "
+    installed_name=EdHarness
+else
+    echo -e "${MUTED}                    ${NC}             ▄     "
+    echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
+    echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
+    echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
+    installed_name=OpenCode
+fi
 echo -e ""
 echo -e ""
-echo -e "${MUTED}YarpNeuro includes free models, to start:${NC}"
+echo -e "${MUTED}${installed_name} includes free models, to start:${NC}"
 echo -e ""
 if [[ $path_added == "true" ]]; then
     echo -e "exec \$SHELL   ${MUTED}# Reload PATH (or open a new terminal)${NC}"

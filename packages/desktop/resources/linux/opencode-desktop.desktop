@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=YarpNeuro
-Exec=/opt/YarpNeuro/ai.opencode %U
+Name=EdHarness
+Exec=/opt/EdHarness/ai.opencode %U
 Terminal=false
 Type=Application
 Icon=ai.opencode

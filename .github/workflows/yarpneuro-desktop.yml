@@ -1,4 +1,4 @@
-name: YarpNeuro Desktop
+name: EdHarness Desktop
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           OPENCODE_CHANNEL: prod
           OPENCODE_UPDATE_OWNER: yarp-technologies
-          OPENCODE_UPDATE_REPOSITORY: yncode
+          OPENCODE_UPDATE_REPOSITORY: edharness
           OPENCODE_UPDATE_CHANNEL: yarp
           OPENCODE_ALLOW_PRERELEASE: "true"
 
@@ -58,7 +58,7 @@ jobs:
         env:
           OPENCODE_CHANNEL: prod
           OPENCODE_UPDATE_OWNER: yarp-technologies
-          OPENCODE_UPDATE_REPOSITORY: yncode
+          OPENCODE_UPDATE_REPOSITORY: edharness
           OPENCODE_UPDATE_CHANNEL: yarp
           OPENCODE_ALLOW_PRERELEASE: "true"
 
@@ -85,7 +85,7 @@ jobs:
           gh release create "$release_tag" "${files[@]}" "$metadata" "$checksums" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "YarpNeuro Desktop $release_tag" \
+            --title "EdHarness Desktop $release_tag" \
             --notes "Linux x64 desktop build from $GITHUB_SHA with YarpNeuro as the only built-in provider."
 
   windows-x64:
@@ -119,7 +119,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           OPENCODE_CHANNEL: prod
           OPENCODE_UPDATE_OWNER: yarp-technologies
-          OPENCODE_UPDATE_REPOSITORY: yncode
+          OPENCODE_UPDATE_REPOSITORY: edharness
           OPENCODE_UPDATE_CHANNEL: yarp
           OPENCODE_ALLOW_PRERELEASE: "true"
 
@@ -129,7 +129,7 @@ jobs:
         env:
           OPENCODE_CHANNEL: prod
           OPENCODE_UPDATE_OWNER: yarp-technologies
-          OPENCODE_UPDATE_REPOSITORY: yncode
+          OPENCODE_UPDATE_REPOSITORY: edharness
           OPENCODE_UPDATE_CHANNEL: yarp
           OPENCODE_ALLOW_PRERELEASE: "true"
 

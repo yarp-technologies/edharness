@@ -1,6 +1,6 @@
-# YarpNeuro Desktop
+# EdHarness Desktop
 
-The YarpNeuro Desktop app, built with Electron.
+The EdHarness Desktop app, built with Electron.
 
 ## Development
 
@@ -13,7 +13,7 @@ bun dev
 
 `bun run build` prepares `resources/` (icons, metainfo and the bundled CLI) and builds the app into `out/`.
 `bun run pack` then packages it, unsigned, into `dist/desktop/` at the repository root: a `.app` tarball on macOS,
-the unpacked app on Windows, and AppImage/deb/rpm on Linux. The YarpNeuro release workflow publishes Linux and Windows packages.
+the unpacked app on Windows, and AppImage/deb/rpm on Linux. The EdHarness release workflow publishes Linux and Windows packages.
 
 ```bash
 bun run build && bun run pack

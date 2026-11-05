@@ -57,7 +57,7 @@ export function AppBaseProviders(
 ) {
   return (
     <MetaProvider>
-      <Title>YarpNeuro</Title>
+      <Title>EdHarness</Title>
       <Font />
       <ThemeProvider
         onThemeApplied={(_, mode, scheme) => {

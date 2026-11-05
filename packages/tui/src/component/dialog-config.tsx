@@ -5,6 +5,7 @@ import { useDialog, type DialogContext } from "../ui/dialog"
 import { DialogSelect, DialogSelectChoice } from "../ui/dialog-select"
 import { useToast } from "../ui/toast"
 import { DialogThemeList } from "./dialog-theme-list"
+import { DEFAULT_THEME_NAME } from "../theme"
 
 type Setting = {
   title: string
@@ -30,7 +31,7 @@ export const settings: Setting[] = [
     category: "Appearance",
     path: ["theme", "name"],
     description: "Color theme used across the interface",
-    default: "opencode",
+    default: DEFAULT_THEME_NAME,
     keywords: ["color scheme", "colors"],
     open: (dialog) =>
       dialog.replace(() => (

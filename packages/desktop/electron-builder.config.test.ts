@@ -9,13 +9,13 @@ import type { Configuration } from "electron-builder"
 import { getConfig } from "./electron-builder.config"
 import { CLI_BINARIES, nodePtyPackage } from "./script/utils"
 
-test("packages YarpNeuro skills and points updates to the fork", () => {
+test("packages EdHarness skills and points updates to the fork", () => {
   const config = load("prod")
-  expect(config.productName).toBe("YarpNeuro")
+  expect(config.productName).toBe("EdHarness")
   expect(config.publish).toEqual({
     provider: "github",
     owner: "yarp-technologies",
-    repo: "yncode",
+    repo: "edharness",
     channel: "yarp",
   })
   expect(config.extraResources).toContainEqual(expect.objectContaining({ from: "../cli/skills/", to: "skills/" }))
@@ -25,9 +25,9 @@ test("packages YarpNeuro skills and points updates to the fork", () => {
 const { FileMatcher } = createRequire(import.meta.resolve("electron-builder"))("app-builder-lib/out/fileMatcher")
 
 const channels = [
-  { channel: "dev", appId: "ai.opencode.desktop.dev" },
-  { channel: "beta", appId: "ai.opencode.desktop.beta" },
-  { channel: "prod", appId: "ai.opencode.desktop" },
+  { channel: "dev", appId: "ai.opencode.desktop.dev", productName: "EdHarness Dev" },
+  { channel: "beta", appId: "ai.opencode.desktop.beta", productName: "EdHarness Beta" },
+  { channel: "prod", appId: "ai.opencode.desktop", productName: "EdHarness" },
 ] as const
 
 function load(channel: string, target?: string): Configuration {
@@ -59,14 +59,16 @@ function trimFilter(dir: string, config: Configuration) {
   ]).createFilter()
 }
 
-test.each(channels)("channel identity for $channel", ({ channel, appId }) => {
+test.each(channels)("channel identity for $channel", ({ channel, appId, productName }) => {
   const config = load(channel)
   expect(config.appId).toBe(appId)
+  expect(config.productName).toBe(productName)
+  expect(config.artifactName).toBe("edharness-${version}.${ext}")
   // All channels must update from the fork, never from upstream.
   expect(config.publish).toEqual({
     provider: "github",
     owner: "yarp-technologies",
-    repo: "yncode",
+    repo: "edharness",
     channel: "yarp",
   })
   expect(config.extraMetadata?.desktopName).toBe(`${appId}.desktop`)
@@ -95,7 +97,7 @@ test.each(channels)("channel identity for $channel", ({ channel, appId }) => {
 
 test("legacy Linux launcher stays hidden", async () => {
   const desktop = await Bun.file(path.join(import.meta.dirname, "resources/linux/opencode-desktop.desktop")).text()
-  expect(desktop).toContain("Exec=/opt/YarpNeuro/ai.opencode %U")
+  expect(desktop).toContain("Exec=/opt/EdHarness/ai.opencode %U")
   expect(desktop).toContain("Icon=ai.opencode")
   expect(desktop).toContain("StartupWMClass=ai.opencode.desktop")
   expect(desktop).toContain("NoDisplay=true")

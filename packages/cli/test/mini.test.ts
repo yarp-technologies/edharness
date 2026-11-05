@@ -127,8 +127,9 @@ describe("mini command", () => {
     const result = await cli(["--help"])
 
     expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain("EdHarness command line interface")
     expect(result.stdout).toMatch(/^  mini[ \t]+Start the minimal interactive interface\r?$/m)
-    expect(result.stdout).toMatch(/^  run[ \t]+Run OpenCode with a message\r?$/m)
+    expect(result.stdout).toMatch(/^  run[ \t]+Run EdHarness with a message\r?$/m)
   })
 
   test("exposes run without legacy interactive, attach, or command modes", async () => {

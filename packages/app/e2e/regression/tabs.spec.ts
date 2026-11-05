@@ -230,16 +230,16 @@ test("inactive session attention dots share the close control without marking th
 test("the browser title names the open session and resets after leaving it", async ({ page }) => {
   await mockWorkspace(page, { name: "Tabs", sessions: [a, b] })
   await page.goto(sessionHref(a.id))
-  await expect(page).toHaveTitle(`${a.title} · YarpNeuro`)
+  await expect(page).toHaveTitle(`${a.title} · EdHarness`)
 
   const tabB = page.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(b.id)}"])`)
   await tabB.locator("[data-titlebar-tab-link]").click()
   await expectPath(page, sessionHref(b.id))
-  await expect(page).toHaveTitle(`${b.title} · YarpNeuro`)
+  await expect(page).toHaveTitle(`${b.title} · EdHarness`)
 
   await page.getByRole("button", { name: "Home", exact: true }).click()
   await expectPath(page, "/")
-  await expect(page).toHaveTitle("YarpNeuro")
+  await expect(page).toHaveTitle("EdHarness")
 })
 
 for (const tabLayout of ["horizontal", "vertical"] as const) {
@@ -1287,7 +1287,7 @@ test("⌘W in the side panel closes its last New tab with the panel, and only th
 test("the Windows titlebar menu pastes through the desktop edit action", async ({ page }) => {
   await mockWorkspace(page, { name: "WindowsMenu", sessions: [] })
   await page.goto(`/e2e/utils/windows-menu.html?${new URLSearchParams({ server: SERVER })}`)
-  await page.getByRole("button", { name: "YarpNeuro menu", exact: true }).click()
+  await page.getByRole("button", { name: "EdHarness menu", exact: true }).click()
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click()
   const paste = page.getByRole("menuitem", { name: /^Paste/ })
   await expect(paste).toHaveText("PasteCtrl+V")

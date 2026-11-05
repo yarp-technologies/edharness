@@ -64,7 +64,7 @@ const getBase = (appId: string): Configuration => {
   const desktopName = `${appId}.desktop`
 
   return {
-    artifactName: "yarp-neuro-${version}.${ext}",
+    artifactName: "edharness-${version}.${ext}",
     directories: {
       output: "dist",
       buildResources: "resources",
@@ -174,7 +174,7 @@ const getBase = (appId: string): Configuration => {
       target: ["dmg", "zip"],
     },
     protocols: {
-      name: "YarpNeuro",
+      name: "EdHarness",
       schemes: ["opencode"],
     },
     win: {
@@ -216,7 +216,7 @@ export function getConfig() {
   const publish = {
     provider: "github" as const,
     owner: process.env.OPENCODE_UPDATE_OWNER ?? "yarp-technologies",
-    repo: process.env.OPENCODE_UPDATE_REPOSITORY ?? "yncode",
+    repo: process.env.OPENCODE_UPDATE_REPOSITORY ?? "edharness",
     channel: process.env.OPENCODE_UPDATE_CHANNEL ?? "yarp",
   }
 
@@ -225,7 +225,7 @@ export function getConfig() {
       return {
         ...base,
         appId,
-        productName: "YarpNeuro Dev",
+        productName: "EdHarness Dev",
         publish,
         deb: { fpm: [...previewCompressionFpm("deb"), metainfoFpm(appId)] },
         rpm: {
@@ -239,8 +239,8 @@ export function getConfig() {
       return {
         ...base,
         appId,
-        productName: "YarpNeuro Beta",
-        protocols: { name: "YarpNeuro Beta", schemes: ["opencode"] },
+        productName: "EdHarness Beta",
+        protocols: { name: "EdHarness Beta", schemes: ["opencode"] },
         publish,
         deb: { fpm: [...previewCompressionFpm("deb"), metainfoFpm(appId)] },
         rpm: {
@@ -254,8 +254,8 @@ export function getConfig() {
       return {
         ...base,
         appId,
-        productName: "YarpNeuro",
-        protocols: { name: "YarpNeuro", schemes: ["opencode"] },
+        productName: "EdHarness",
+        protocols: { name: "EdHarness", schemes: ["opencode"] },
         // An Icon Composer package compiles to Assets.car, which macOS 26 and later draw the app icon from
         // (Dock, Finder, system dialogs and the system icon styles). Older macOS keeps using the ICNS.
         mac: { ...base.mac, icon: "resources/icons/icon.icon" },
