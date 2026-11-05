@@ -38,7 +38,12 @@ SUPERPOWERS_SKILLS=(
     writing-skills
 )
 
-DEFAULT_SKILLS=("${ANTHROPIC_SKILLS[@]}" "${SUPERPOWERS_SKILLS[@]}")
+OPENED_SKILLS=(
+    opened-api
+    opened-init
+)
+
+DEFAULT_SKILLS=("${ANTHROPIC_SKILLS[@]}" "${SUPERPOWERS_SKILLS[@]}" "${OPENED_SKILLS[@]}")
 
 
 MUTED='\033[0;2m'
@@ -286,13 +291,16 @@ install_default_skills() {
     if [ -n "$skill_runner" ]; then
         local anthropic_names="${ANTHROPIC_SKILLS[*]}"
         local superpowers_names="${SUPERPOWERS_SKILLS[*]}"
+        local opened_names="${OPENED_SKILLS[*]}"
         SKILL_RUNNER="$skill_runner" \
             ANTHROPIC_NAMES="$anthropic_names" \
             SUPERPOWERS_NAMES="$superpowers_names" \
+            OPENED_NAMES="$opened_names" \
             nohup sh -c '
                 set -eu
                 $SKILL_RUNNER add anthropics/skills --global --yes --agent "*" --skill $ANTHROPIC_NAMES
                 $SKILL_RUNNER add obra/superpowers --global --yes --agent "*" --skill $SUPERPOWERS_NAMES
+                $SKILL_RUNNER add yarp-technologies/opened-skill --global --yes --agent opencode --skill $OPENED_NAMES
             ' opencode-skills-install >>"$log_file" 2>&1 </dev/null &
         if [ -n "$bundle_parent" ]; then
             rm -rf "$bundle_parent"
