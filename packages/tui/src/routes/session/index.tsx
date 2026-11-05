@@ -94,7 +94,6 @@ import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { DialogExportResult } from "../../ui/dialog-export-result"
 import { useConfig, useNewDesigns } from "../../config"
 import { useClipboard } from "../../context/clipboard"
-import { nextThinkingMode, type ThinkingMode } from "../../context/thinking"
 import { getScrollAcceleration } from "../../util/scroll"
 import { collapseShellOutput, collapseToolOutput } from "../../util/collapse-tool-output"
 import { Keymap, type KeymapCommand } from "../../context/keymap"
@@ -240,7 +239,6 @@ export function Session(props: {
 
   const renderer = useRenderer()
   const dimensions = useTerminalDimensions()
-  const thinkingMode = createMemo<ThinkingMode>(() => config.session?.thinking ?? "hide")
   const showScrollbar = createMemo(() => config.session?.scrollbar ?? false)
   const markdownMode = createMemo(() => config.session?.markdown ?? "rendered")
   const diffWrapMode = createMemo(() => config.diffs?.wrap ?? "word")
@@ -250,8 +248,7 @@ export function Session(props: {
   const groupExpanded = (groupID: string, kind: GroupKind) =>
     sessionTabs.groupExpanded(sessionID, groupID) ??
     (verbosity() === "high" && (kind === "exploration" || kind === "instructions"))
-  const groupedKind = (kind: GroupKind) =>
-    kind === "reasoning" ? thinkingMode() === "hide" : kind === "exploration" ? groupExploration() : true
+  const groupedKind = (kind: GroupKind) => kind !== "exploration" || groupExploration()
 
   Keymap.createLayer(() => ({
     priority: 10,
@@ -1148,24 +1145,6 @@ export function Session(props: {
       },
     },
     {
-      title: (() => {
-        const next = nextThinkingMode(thinkingMode())
-        if (next === "hide") return "Collapse thinking"
-        return "Expand thinking"
-      })(),
-      id: "session.toggle.thinking",
-      group: "Session",
-      palette: undefined,
-      run: () => {
-        void configState
-          .update((draft) => {
-            draft.session = { ...draft.session, thinking: nextThinkingMode(thinkingMode()) }
-          })
-          .catch(toast.error)
-        dialog.clear()
-      },
-    },
-    {
       title: "Toggle session scrollbar",
       id: "session.toggle.scrollbar",
       group: "Session",
@@ -1486,7 +1465,6 @@ export function Session(props: {
           },
         },
         sessionID: route.sessionID,
-        thinkingMode,
         markdownMode,
         groupExploration,
         diffWrapMode,

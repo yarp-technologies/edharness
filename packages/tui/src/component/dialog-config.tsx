@@ -77,15 +77,6 @@ export const settings: Setting[] = [
     keywords: ["scroll bar"],
   },
   {
-    title: "Thinking",
-    category: "Session",
-    path: ["session", "thinking"],
-    description: "Whether model thinking is shown in the chat",
-    default: "hide",
-    values: ["hide", "show"],
-    keywords: ["reasoning", "chain of thought"],
-  },
-  {
     title: "Markdown",
     category: "Session",
     path: ["session", "markdown"],

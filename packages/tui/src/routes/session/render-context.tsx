@@ -3,7 +3,6 @@ import type { Renderable } from "@opentui/core"
 import type { ModelInfo } from "@opencode/client"
 import type { SessionInbox } from "@opencode/schema/session-inbox"
 import type { useConfig } from "../../config"
-import type { ThinkingMode } from "../../context/thinking"
 import type { createTimelineAnchors } from "./anchors"
 import type { GroupKind } from "./grouping/session"
 
@@ -24,7 +23,6 @@ export const context = createContext<{
   groupExpanded: (groupID: string, kind: GroupKind) => boolean
   /** An anchor keeps its viewport row through the layout change the toggle causes. */
   setGroupExpanded: (groupID: string, expanded: boolean, anchor?: Renderable | null) => void
-  thinkingMode: () => ThinkingMode
   markdownMode: () => "source" | "rendered"
   groupExploration: () => boolean
   diffWrapMode: () => "word" | "none"

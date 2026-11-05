@@ -1,19 +1,15 @@
 import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js"
-import { RGBA, type Renderable } from "@opentui/core"
+import type { Renderable } from "@opentui/core"
 import { useRenderer, type JSX } from "@opentui/solid"
 import type { SessionMessageAssistantTool, SessionMessageInfo } from "@opencode/client"
-import { createSyntaxStyleMemo, useTheme, useThemes } from "../../context/theme"
-import { reasoningSummary } from "../../context/thinking"
-import { SplitBorder } from "../../ui/border"
-import { Locale } from "../../util/locale"
+import { useTheme } from "../../context/theme"
 import { EntryAnchor, GroupAnchor, visitEntries } from "./anchor-view"
 import { groupID } from "./anchors"
 import { instructionPaths, type PartRef, type SessionEntry, type SessionGroup, type SessionNode } from "./grouping/session"
 import { summarizeActivity } from "./activity-summary"
-import { InlineToolRow, reasoningContent, toolDisplay } from "./message-parts"
+import { InlineToolRow, toolDisplay } from "./message-parts"
 import { use } from "./render-context"
 import { resolvePart } from "./rows"
-import { generateThinkingSyntax } from "./thinking-syntax"
 
 type Renderers = {
   message: (messageID: string) => SessionMessageInfo | undefined
@@ -28,6 +24,7 @@ type GroupProps = Renderers & {
   pending: readonly PartRef[]
   pendingOutside?: boolean
   imagesOutside?: boolean
+  reasoningStatusOutside?: boolean
 }
 
 export function SessionGroupView(props: Renderers & { row: SessionGroup }) {
@@ -54,9 +51,37 @@ function Group(props: GroupProps) {
           <Match when={kind === "instructions"}>
             <InstructionsGroup {...props} />
           </Match>
+          <Match when={kind === "reasoning"}>
+            <ReasoningGroup {...props} />
+          </Match>
         </Switch>
       )}
     </Show>
+  )
+}
+
+function ReasoningGroup(props: GroupProps) {
+  const theme = useTheme()
+  const active = createMemo(
+    () =>
+      !props.completed &&
+      !props.reasoningStatusOutside &&
+      descendants(props.node).some((entry) => {
+        if (entry.type !== "part") return false
+        const message = props.message(entry.ref.messageID)
+        if (message?.type !== "assistant" || message.time.completed !== undefined) return false
+        const part = resolvePart(message, entry.ref.partID)
+        return part?.type === "reasoning" && part.time?.completed === undefined
+      }),
+  )
+  return (
+    <GroupAnchor groupID={groupID(props.node, props.level)} active={active()}>
+      <Show when={active()}>
+        <InlineToolRow icon="" color={theme.text.base} complete={false} pending="Думаю…" spinner>
+          Думаю…
+        </InlineToolRow>
+      </Show>
+    </GroupAnchor>
   )
 }
 
@@ -71,17 +96,6 @@ function GroupContent(props: GroupProps) {
   const refs = createMemo(() =>
     entries().flatMap((entry) => (entry.type === "part" && !isPending(entry, props.pending) ? [entry.ref] : [])),
   )
-  const thoughts = createMemo(() =>
-    props.node.kind !== "reasoning"
-      ? []
-      : refs().flatMap((ref) => {
-          const message = props.message(ref.messageID)
-          if (message?.type !== "assistant") return []
-          const part = resolvePart(message, ref.partID)
-          if (part?.type !== "reasoning" || !reasoningContent(part)) return []
-          return [{ message, part }]
-        }),
-  )
   const tools = createMemo(() =>
     props.node.kind !== "exploration"
       ? []
@@ -92,26 +106,9 @@ function GroupContent(props: GroupProps) {
           return part?.type === "tool" ? [part] : []
         }),
   )
-  const latest = createMemo((previous: string | null) => {
-    const item = thoughts().at(-1)
-    if (!item) return previous
-    const title = reasoningSummary(reasoningContent(item.part)).title
-    if (title) return title
-    if (item.part.time?.completed !== undefined || item.message.time.completed !== undefined) return null
-    return previous
-  }, null)
-  const duration = createMemo(() =>
-    thoughts().reduce((total, item) => {
-      const start = item.part.time?.created
-      const end = item.part.time?.completed
-      return total + (start === undefined || end === undefined ? 0 : Math.max(0, end - start))
-    }, 0),
-  )
-  const grouped = () => (props.node.kind === "reasoning" ? ctx.thinkingMode() === "hide" : ctx.groupExploration())
+  const grouped = () => ctx.groupExploration()
   const completed = () =>
-    props.node.kind === "reasoning"
-      ? props.completed
-      : props.completed || (tools().length > 0 && tools().every((part) => part.time.completed !== undefined))
+    props.completed || (tools().length > 0 && tools().every((part) => part.time.completed !== undefined))
   const label = createMemo(() => {
     const counts = tools().reduce<Record<string, number>>((result, part) => {
       const tool = toolDisplay(part.name)
@@ -127,71 +124,29 @@ function GroupContent(props: GroupProps) {
     return `${completed() ? "Explored" : "Exploring"}: ${names.join(", ")}`
   })
   const toggle = () => disclosure.toggle()
-  const children = (mode: "normal" | "thought" | "tool") => (
+  const children = (mode: "normal" | "tool") => (
     <Children {...props} nodes={props.node.children} mode={mode} />
   )
 
   return (
-    <GroupAnchor
-      groupID={id()}
-      active={grouped() && (props.node.kind === "reasoning" ? thoughts().length > 0 : tools().length > 0)}
-    >
-      <Show
-        when={props.node.kind === "reasoning"}
-        fallback={
-          <Show when={grouped()} fallback={children("normal")}>
-            <Show when={tools().length > 0}>
-              <InlineToolRow
-                icon={completed() ? "→" : "✱"}
-                color={hover() ? theme.text.base : theme.text.muted}
-                complete={completed()}
-                pending={label()}
-                spinner={!completed()}
-                onMouseOver={() => setHover(true)}
-                onMouseOut={() => setHover(false)}
-                onMouseUp={toggle}
-              >
-                {label()}
-              </InlineToolRow>
-            </Show>
-            <Show when={expanded() && tools().length > 0}>{children("tool")}</Show>
-            <Show when={!props.imagesOutside}>{props.images(tools())}</Show>
-          </Show>
-        }
-      >
-        <Show when={thoughts().length > 0}>
-          <Show when={grouped()} fallback={children("normal")}>
-            <InlineToolRow
-              icon={expanded() ? "-" : "+"}
-              color={
-                !props.completed
-                  ? theme.text.base
-                  : hover() || expanded()
-                    ? theme.text.feedback.warning.base
-                    : RGBA.fromValues(
-                        theme.text.feedback.warning.base.r,
-                        theme.text.feedback.warning.base.g,
-                        theme.text.feedback.warning.base.b,
-                        0.6,
-                      )
-              }
-              complete={props.completed}
-              pending={latest() ? `Thinking: ${latest()}` : "Thinking"}
-              spinner={!props.completed}
-              onMouseOver={() => setHover(true)}
-              onMouseOut={() => setHover(false)}
-              onMouseUp={toggle}
-            >
-              {props.completed ? "Thought" : latest() ? `Thinking: ${latest()}` : "Thinking"}
-              <Show when={props.completed && !expanded() && latest()}>: {latest()}</Show>
-              <Show when={props.completed && thoughts().length > 1}> · {thoughts().length} steps</Show>
-              <Show when={props.completed && duration()}> · {Locale.duration(duration())}</Show>
-            </InlineToolRow>
-            <Show when={expanded()}>
-              <box paddingLeft={3}>{children("thought")}</box>
-            </Show>
-          </Show>
+    <GroupAnchor groupID={id()} active={grouped() && tools().length > 0}>
+      <Show when={grouped()} fallback={children("normal")}>
+        <Show when={tools().length > 0}>
+          <InlineToolRow
+            icon={completed() ? "→" : "✱"}
+            color={hover() ? theme.text.base : theme.text.muted}
+            complete={completed()}
+            pending={label()}
+            spinner={!completed()}
+            onMouseOver={() => setHover(true)}
+            onMouseOut={() => setHover(false)}
+            onMouseUp={toggle}
+          >
+            {label()}
+          </InlineToolRow>
         </Show>
+        <Show when={expanded() && tools().length > 0}>{children("tool")}</Show>
+        <Show when={!props.imagesOutside}>{props.images(tools())}</Show>
       </Show>
       <PendingEntries {...props} entries={entries()} />
     </GroupAnchor>
@@ -222,7 +177,7 @@ function ActivityGroup(props: GroupProps) {
         </InlineToolRow>
         <Show when={disclosure.expanded()}>
           <box flexDirection="column" gap={1} marginTop={1}>
-            <Children {...props} nodes={props.node.children} mode="normal" />
+            <Children {...props} nodes={props.node.children} mode="normal" reasoningStatusOutside />
           </box>
         </Show>
       </Show>
@@ -308,7 +263,7 @@ function PendingEntries(props: GroupProps & { entries: readonly SessionEntry[] }
   )
 }
 
-function Children(props: GroupProps & { nodes: readonly SessionNode[]; mode: "normal" | "thought" | "tool" }) {
+function Children(props: GroupProps & { nodes: readonly SessionNode[]; mode: "normal" | "tool" }) {
   return (
     <For each={props.nodes}>
       {(node, index) => {
@@ -335,16 +290,9 @@ function Children(props: GroupProps & { nodes: readonly SessionNode[]; mode: "no
             <Match when={node.type === "entry" ? node : undefined}>
               {(node) => (
                 <Show when={!isPending(node().entry, props.pending)}>
-                  <Show
-                    when={props.mode === "thought"}
-                    fallback={
-                      <EntryAnchor entry={node().entry}>
-                        {props.entry(node().entry, props.mode === "tool" ? false : undefined)}
-                      </EntryAnchor>
-                    }
-                  >
-                    <ThoughtEntry entry={node().entry} message={props.message} />
-                  </Show>
+                  <EntryAnchor entry={node().entry}>
+                    {props.entry(node().entry, props.mode === "tool" ? false : undefined)}
+                  </EntryAnchor>
                 </Show>
               )}
             </Match>
@@ -352,53 +300,6 @@ function Children(props: GroupProps & { nodes: readonly SessionNode[]; mode: "no
         )
       }}
     </For>
-  )
-}
-
-function ThoughtEntry(props: { entry: SessionEntry; message: Renderers["message"] }) {
-  const ctx = use()
-  const theme = useTheme()
-  const { currentSyntax: syntax } = useThemes()
-  const renderer = useRenderer()
-  const thinkingSyntax = createSyntaxStyleMemo(() =>
-    generateThinkingSyntax(syntax(), theme.text.muted, renderer.nativeScene),
-  )
-  const message = createMemo(() => {
-    if (props.entry.type !== "part") return
-    const item = props.message(props.entry.ref.messageID)
-    return item?.type === "assistant" ? item : undefined
-  })
-  const part = createMemo(() => {
-    const item = message()
-    if (!item || props.entry.type !== "part") return
-    const part = resolvePart(item, props.entry.ref.partID)
-    return part?.type === "reasoning" ? part : undefined
-  })
-  const content = createMemo(() => {
-    const item = part()
-    return item ? reasoningContent(item) : ""
-  })
-  return (
-    <Show when={content()}>
-      <EntryAnchor entry={props.entry} marginTop={1}>
-        <box
-          border={["left"]}
-          customBorderChars={SplitBorder.customBorderChars}
-          borderColor={theme.decrease(theme.background.raised.base)}
-          paddingLeft={1}
-        >
-          <code
-            filetype="markdown"
-            drawUnstyledText={false}
-            streaming={part()?.time?.completed === undefined && message()?.time.completed === undefined}
-            syntaxStyle={thinkingSyntax()}
-            content={content()}
-            conceal={ctx.markdownMode() === "rendered"}
-            fg={theme.text.muted}
-          />
-        </box>
-      </EntryAnchor>
-    </Show>
   )
 }
 

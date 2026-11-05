@@ -279,6 +279,13 @@ export function createSessionRows(sessionID: Accessor<string>, onSynced?: (sessi
       if (event.data.sessionID === sessionID() && event.data.text.trim())
         appendPart({ messageID: event.data.assistantMessageID, partID: `text:${event.data.ordinal}` }, { type: "text" })
     }),
+    data.on("session.reasoning.started", (event) => {
+      if (event.data.sessionID === sessionID())
+        appendPart(
+          { messageID: event.data.assistantMessageID, partID: `reasoning:${event.data.ordinal}` },
+          { type: "reasoning" },
+        )
+    }),
     data.on("session.reasoning.delta", (event) => {
       if (event.data.sessionID === sessionID() && event.data.delta.trim())
         appendPart(
@@ -287,9 +294,10 @@ export function createSessionRows(sessionID: Accessor<string>, onSynced?: (sessi
         )
     }),
     data.on("session.reasoning.ended", (event) => {
-      if (event.data.sessionID === sessionID() && event.data.text.trim())
+      const ref = { messageID: event.data.assistantMessageID, partID: `reasoning:${event.data.ordinal}` }
+      if (event.data.sessionID === sessionID() && (event.data.text.trim() || hasPart(rows, ref)))
         appendPart(
-          { messageID: event.data.assistantMessageID, partID: `reasoning:${event.data.ordinal}` },
+          ref,
           { type: "reasoning", time: { completed: event.created } },
         )
     }),
@@ -401,7 +409,13 @@ export function reduceSessionRows(
     const ordinals = { text: 0, reasoning: 0 }
     message.content.forEach((part) => {
       const partID = part.type === "tool" ? part.id : `${part.type}:${ordinals[part.type]++}`
-      if ((part.type === "text" || part.type === "reasoning") && !part.text.trim()) return
+      if (part.type === "text" && !part.text.trim()) return
+      if (
+        part.type === "reasoning" &&
+        !part.text.trim() &&
+        (part.time?.created === undefined || part.time.completed !== undefined || message.time.completed !== undefined)
+      )
+        return
       rows.push({
         entry: { type: "part", ref: { messageID: message.id, partID } },
         part,

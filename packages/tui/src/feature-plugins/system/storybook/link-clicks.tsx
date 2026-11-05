@@ -86,7 +86,6 @@ function LinkClicksStory(props: { context: Plugin.Context }) {
           anchors: createTimelineAnchors(),
           groupExpanded: () => true,
           setGroupExpanded: () => {},
-          thinkingMode: () => "show",
           markdownMode,
           groupExploration: () => false,
           diffWrapMode: () => "word",

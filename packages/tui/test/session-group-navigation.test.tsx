@@ -50,8 +50,15 @@ test.each([
         content: [
           { type: "text", text: "First response" },
           {
-            type: "reasoning",
-            text: "**First title**\n\nFirst thought body with enough text to wrap differently at each tested terminal width, changing the target's measured offset.",
+            type: "tool",
+            id: "read-first",
+            name: "read",
+            state: {
+              status: "completed",
+              input: { path: "first-title.txt" },
+              content: [{ type: "text", text: "ok" }],
+              metadata: { loaded: ["first-detail.txt"] },
+            },
             time: { created: 1, completed: 2 },
           },
         ],
@@ -64,7 +71,18 @@ test.each([
         time: { created: 4, completed: 6 },
         finish: "stop",
         content: [
-          { type: "reasoning", text: "**Second title**\n\nSecond thought body", time: { created: 4, completed: 5 } },
+          {
+            type: "tool",
+            id: "read-second",
+            name: "read",
+            state: {
+              status: "completed",
+              input: { path: "second-title.txt" },
+              content: [{ type: "text", text: "ok" }],
+              metadata: { loaded: ["second-detail.txt"] },
+            },
+            time: { created: 4, completed: 5 },
+          },
           { type: "text", text: `Second response\n${"A later line of the response.\n".repeat(lines)}Final marker` },
         ],
       },
@@ -110,9 +128,9 @@ test.each([
     )
     try {
       await waitForHighlightedFrame(setup, (frame) => frame.includes("Final marker"))
-      expect(setup.captureCharFrame()).not.toContain("Second thought body")
+      expect(setup.captureCharFrame()).not.toContain("second-detail.txt")
       setup.mockInput.pressKey("u", { ctrl: true, shift: true })
-      await waitForHighlightedFrame(setup, (frame) => frame.includes("Thought:"))
+      await waitForHighlightedFrame(setup, (frame) => frame.includes("Explored: 2 reads"))
       await setup.waitForVisualIdle({ quietFrames: 3 })
       const find = (node: Renderable): ScrollBoxRenderable | undefined =>
         node instanceof ScrollBoxRenderable && node.getRenderable("msg_b")
@@ -123,14 +141,14 @@ test.each([
       const summaryLine = setup
         .captureCharFrame()
         .split("\n")
-        .findIndex((line) => line.includes("Thought:"))
+        .findIndex((line) => line.includes("Explored: 2 reads"))
       initial.scrollTo(initial.scrollTop + summaryLine - initial.viewport.y)
       await setup.waitForVisualIdle({ quietFrames: 3 })
       const summaryOffset =
         setup
           .captureCharFrame()
           .split("\n")
-          .findIndex((line) => line.includes("Thought:")) - initial.viewport.y
+          .findIndex((line) => line.includes("Explored: 2 reads")) - initial.viewport.y
       if (lines > 0) expect(summaryOffset).toBe(0)
       setup.mockInput.pressKey("2", { ctrl: true })
       await waitForHighlightedFrame(setup, (frame) => frame.includes("Other session content"))
@@ -139,18 +157,18 @@ test.each([
         const viewport = find(setup.renderer.root)
         return (
           !!viewport &&
-          frame.split("\n").findIndex((line) => line.includes("Thought:")) - viewport.viewport.y === summaryOffset
+          frame.split("\n").findIndex((line) => line.includes("Explored: 2 reads")) - viewport.viewport.y === summaryOffset
         )
       })
       await setup.waitForVisualIdle({ quietFrames: 3 })
-      expect(setup.captureCharFrame()).not.toContain("Second thought body")
+      expect(setup.captureCharFrame()).not.toContain("second-detail.txt")
       const summary = find(setup.renderer.root)
       if (!summary) throw new Error("Missing restored summary viewport")
       expect(
         setup
           .captureCharFrame()
           .split("\n")
-          .findIndex((line) => line.includes("Thought:")) - summary.viewport.y,
+          .findIndex((line) => line.includes("Explored: 2 reads")) - summary.viewport.y,
       ).toBe(summaryOffset)
       setup.mockInput.pressKey("u", { ctrl: true, shift: true })
       await setup.waitForVisualIdle({ quietFrames: 3 })
@@ -159,29 +177,29 @@ test.each([
       setup.mockInput.pressKey("n", { ctrl: true, shift: true })
       await waitForHighlightedFrame(setup, (frame) => frame.includes("Second response"))
       await setup.waitForVisualIdle({ quietFrames: 3 })
-      expect(setup.captureCharFrame()).not.toContain("Second thought body")
+      expect(setup.captureCharFrame()).not.toContain("second-detail.txt")
       setup.mockInput.pressKey("u", { ctrl: true, shift: true })
-      await waitForHighlightedFrame(setup, (frame) => frame.includes("Thought:"))
+      await waitForHighlightedFrame(setup, (frame) => frame.includes("Explored: 2 reads"))
       await setup.waitForVisualIdle({ quietFrames: 3 })
       const header = setup
         .captureCharFrame()
         .split("\n")
-        .findIndex((line) => line.includes("Thought:"))
+        .findIndex((line) => line.includes("Explored: 2 reads"))
       await setup.mockMouse.click(8, header)
-      await waitForHighlightedFrame(setup, (frame) => frame.includes("First thought body"))
+      await waitForHighlightedFrame(setup, (frame) => frame.includes("first-detail.txt"))
       setup.mockInput.pressKey("u", { ctrl: true, shift: true })
       await setup.waitForVisualIdle({ quietFrames: 3 })
       setup.mockInput.pressKey("n", { ctrl: true, shift: true })
       await setup.waitForVisualIdle({ quietFrames: 3 })
       setup.mockInput.pressKey("n", { ctrl: true, shift: true })
-      await waitForHighlightedFrame(setup, (frame) => frame.includes("Second thought body"))
+      await waitForHighlightedFrame(setup, (frame) => frame.includes("second-detail.txt"))
       await setup.waitForVisualIdle({ quietFrames: 3 })
       const scroll = find(setup.renderer.root)
       if (!scroll) throw new Error("Missing transcript scrollbox")
       const titleLine = setup
         .captureCharFrame()
         .split("\n")
-        .findIndex((line) => line.includes("Second title"))
+        .findIndex((line) => line.includes("second-title.txt"))
       expect(titleLine - scroll.viewport.y).toBe(1)
       expect(scroll.scrollTop).toBeGreaterThan(0)
       setup.mockInput.pressKey("2", { ctrl: true })
@@ -190,7 +208,7 @@ test.each([
       await waitForHighlightedFrame(setup, (frame) => {
         const viewport = find(setup.renderer.root)
         return (
-          !!viewport && frame.split("\n").findIndex((line) => line.includes("Second title")) - viewport.viewport.y === 1
+          !!viewport && frame.split("\n").findIndex((line) => line.includes("second-title.txt")) - viewport.viewport.y === 1
         )
       })
       await setup.waitForVisualIdle({ quietFrames: 3 })
@@ -199,27 +217,27 @@ test.each([
       const restoredTitle = setup
         .captureCharFrame()
         .split("\n")
-        .findIndex((line) => line.includes("Second title"))
+        .findIndex((line) => line.includes("second-title.txt"))
       expect(restoredTitle - restored.viewport.y).toBe(1)
       if (lines === 0) return
 
       // Save inside A's second part, not relative to A's earlier text part.
       setup.mockInput.pressKey("u", { ctrl: true, shift: true })
-      await waitForHighlightedFrame(setup, (frame) => frame.includes("First title"))
+      await waitForHighlightedFrame(setup, (frame) => frame.includes("first-title.txt"))
       await setup.waitForVisualIdle({ quietFrames: 3 })
       const reading = find(setup.renderer.root)
       if (!reading) throw new Error("Missing reading viewport")
       const firstTitle = setup
         .captureCharFrame()
         .split("\n")
-        .findIndex((line) => line.includes("First title"))
-      reading.scrollTo(reading.scrollTop + firstTitle - reading.viewport.y + 2)
+        .findIndex((line) => line.includes("first-title.txt"))
+      reading.scrollTo(reading.scrollTop + firstTitle - reading.viewport.y + 1)
       await setup.waitForVisualIdle({ quietFrames: 3 })
       const bodyOffset =
         setup
           .captureCharFrame()
           .split("\n")
-          .findIndex((line) => line.includes("First thought body")) - reading.viewport.y
+          .findIndex((line) => line.includes("first-detail.txt")) - reading.viewport.y
       expect(bodyOffset).toBe(0)
       setup.mockInput.pressKey("2", { ctrl: true })
       await waitForHighlightedFrame(setup, (frame) => frame.includes("Other session content"))
@@ -228,7 +246,7 @@ test.each([
         const viewport = find(setup.renderer.root)
         return (
           !!viewport &&
-          frame.split("\n").findIndex((line) => line.includes("First thought body")) - viewport.viewport.y ===
+          frame.split("\n").findIndex((line) => line.includes("first-detail.txt")) - viewport.viewport.y ===
             bodyOffset
         )
       })
@@ -239,7 +257,7 @@ test.each([
         setup
           .captureCharFrame()
           .split("\n")
-          .findIndex((line) => line.includes("First thought body")) - final.viewport.y,
+          .findIndex((line) => line.includes("first-detail.txt")) - final.viewport.y,
       ).toBe(bodyOffset)
     } finally {
       setup.renderer.destroy()

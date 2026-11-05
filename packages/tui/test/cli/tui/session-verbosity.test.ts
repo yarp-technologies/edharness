@@ -178,7 +178,7 @@ test("activity summary counts finished work by category", () => {
     { message, part: tool("g1", "grep") },
   ]
   expect(activitySummary(items, 2)).toEqual({
-    label: "2 commands, 2 edits, 1 thought, 1 read, 1 tool, 2 instructions",
+    label: "2 commands, 2 edits, 1 read, 1 tool, 2 instructions",
     active: false,
   })
 })
@@ -221,7 +221,7 @@ test("execute counts its finished nested calls instead of itself", () => {
   })
 })
 
-test("activity summary counts distinct instruction files and skips redacted thoughts", () => {
+test("activity summary counts distinct instruction files and excludes thoughts", () => {
   const messages: SessionMessageInfo[] = [
     assistant("a", [
       { type: "reasoning", text: "[REDACTED]", time: { created: 1, completed: 2 } },
@@ -234,7 +234,7 @@ test("activity summary counts distinct instruction files and skips redacted thou
   const activity = reduceSessionRows(messages, new Set(), false, "low")[0]
   if (activity.type !== "group") throw new Error("Expected activity")
   const message = (id: string) => messages.find((item) => item.id === id)
-  expect(summarizeActivity(activity, message, [], true).label).toBe("1 thought, 1 read, 3 instructions")
+  expect(summarizeActivity(activity, message, [], true).label).toBe("1 read, 3 instructions")
 })
 
 test("questions stand alone at every level and end an activity run", () => {
@@ -249,14 +249,14 @@ test("questions stand alone at every level and end an activity run", () => {
   expect(rows.map((row) => (row.type === "group" ? row.kind : row.type))).toEqual(["activity", "part", "activity"])
 })
 
-test("a thought still streaming counts as finished once a later row closes its group", () => {
+test("a thought still streaming stops the active indicator when a later row closes its group", () => {
   const open = { ...assistant("a", []), time: { created: 1 } }
   const items = [
     { message: open, part: { type: "reasoning" as const, text: "Planning", time: { created: 1 } } },
     { message: open, part: tool("r1", "read") },
   ]
   expect(activitySummary(items, 0)).toEqual({ label: "1 read", active: true })
-  expect(activitySummary(items, 0, true)).toEqual({ label: "1 thought, 1 read", active: false })
+  expect(activitySummary(items, 0, true)).toEqual({ label: "1 read", active: false })
 })
 
 test("until something finishes, the label is the first running item's status", () => {
@@ -281,7 +281,7 @@ test("busy labels depend only on the tool and whether it is still being prepared
   expect(busyLabel(tool("s", "shell", "running"))).toBe("Running command…")
   expect(busyLabel(tool("r", "read", "running"))).toBe("Running read…")
   expect(busyLabel(tool("x", "execute", "running"))).toBe("Running code…")
-  expect(busyLabel({ type: "reasoning", text: "", time: { created: 1 } })).toBe("Thinking…")
+  expect(busyLabel({ type: "reasoning", text: "", time: { created: 1 } })).toBe("Думаю…")
 })
 
 test("a finished execute with no nested calls counts as one tool", () => {

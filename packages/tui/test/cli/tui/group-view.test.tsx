@@ -15,6 +15,130 @@ import { emptyThemeSource } from "../../fixture/fixture"
 import { TestTuiContexts } from "../../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
 
+test.each([
+  ["hide", false, 44],
+  ["hide", true, 100],
+  ["show", false, 100],
+  ["show", true, 44],
+] as const)("reasoning stays hidden while active in %s mode", async (thinkingMode, initiallyExpanded, width) => {
+  const anchors = createTimelineAnchors()
+  const [expanded, setExpanded] = createStore<Record<string, boolean>>({})
+  const [row, setRow] = createStore<SessionGroup>({
+    type: "group",
+    kind: "reasoning",
+    size: 1,
+    completed: false,
+    children: [{ type: "entry", size: 1, entry: { type: "part", ref: { messageID: "a", partID: "reasoning:0" } } }],
+  })
+  const id = groupID(row, 0)
+  if (!id) throw new Error("Missing reasoning group ID")
+  setExpanded(id, initiallyExpanded)
+  const message: SessionMessageAssistant = {
+    id: "a",
+    type: "assistant",
+    agent: "build",
+    model: { providerID: "fixture", id: "fixture" },
+    time: { created: 1 },
+    content: [{ type: "reasoning", text: "**Private title**\n\nPrivate reasoning body", time: { created: 1 } }],
+  }
+  const app = await mount({
+    row,
+    anchors,
+    width,
+    config: createTuiResolvedConfig({ animations: false, session: { thinking: thinkingMode } }),
+    expanded: (key) => expanded[key],
+    setExpanded: (key, value) => setExpanded(key, value),
+    message: () => message,
+    entry: () => <text>Private reasoning body</text>,
+  })
+  try {
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("Думаю…")
+    expect(app.captureCharFrame()).not.toContain("Private title")
+    expect(app.captureCharFrame()).not.toContain("Private reasoning body")
+    await app.mockMouse.click(5, 2)
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("Думаю…")
+    expect(app.captureCharFrame()).not.toContain("Private title")
+    expect(app.captureCharFrame()).not.toContain("Private reasoning body")
+    setRow("completed", true)
+    await app.renderOnce()
+    expect(app.captureCharFrame()).not.toContain("Думаю…")
+    expect(app.captureCharFrame()).not.toContain("Private title")
+    expect(app.captureCharFrame()).not.toContain("Private reasoning body")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test.each([false, true])("low-verbosity activity hides reasoning when expanded is %s", async (initiallyExpanded) => {
+  const anchors = createTimelineAnchors()
+  const [expanded, setExpanded] = createStore<Record<string, boolean>>({})
+  const [row, setRow] = createStore<SessionGroup>({
+    type: "group",
+    kind: "activity",
+    size: 2,
+    completed: false,
+    pending: [],
+    children: [
+      { type: "entry", size: 1, entry: { type: "part", ref: { messageID: "a", partID: "read-a" } } },
+      {
+        type: "group",
+        kind: "reasoning",
+        size: 1,
+        children: [{ type: "entry", size: 1, entry: { type: "part", ref: { messageID: "a", partID: "reasoning:0" } } }],
+      },
+    ],
+  })
+  const id = groupID(row, 0)
+  if (!id) throw new Error("Missing activity group ID")
+  setExpanded(id, initiallyExpanded)
+  const message: SessionMessageAssistant = {
+    id: "a",
+    type: "assistant",
+    agent: "build",
+    model: { providerID: "fixture", id: "fixture" },
+    time: { created: 1 },
+    content: [
+      {
+        type: "tool",
+        id: "read-a",
+        name: "read",
+        time: { created: 1, completed: 2 },
+        state: { status: "completed", input: {}, content: [{ type: "text", text: "ok" }], metadata: {} },
+      },
+      { type: "reasoning", text: "**Private title**\n\nPrivate reasoning body", time: { created: 3 } },
+    ],
+  }
+  const app = await mount({
+    row,
+    anchors,
+    config: createTuiResolvedConfig({ animations: false, session: { thinking: "show" } }),
+    expanded: (key) => expanded[key],
+    setExpanded: (key, value) => setExpanded(key, value),
+    message: () => message,
+    entry: (entry) =>
+      entry.type === "part" && entry.ref.partID === "read-a" ? (
+        <text>Read tool detail</text>
+      ) : (
+        <text>Private reasoning body</text>
+      ),
+  })
+  try {
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("Думаю…")
+    expect(app.captureCharFrame()).not.toContain("Private title")
+    expect(app.captureCharFrame()).not.toContain("Private reasoning body")
+    setRow("completed", true)
+    await app.renderOnce()
+    expect(app.captureCharFrame()).not.toContain("Думаю…")
+    expect(app.captureCharFrame()).not.toContain("Private title")
+    expect(app.captureCharFrame()).not.toContain("Private reasoning body")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 test("retains nested expansion state and registers exact headers and parts", async () => {
   addDefaultParsers(parsers.parsers)
   const anchors = createTimelineAnchors()
@@ -140,13 +264,15 @@ test("retains nested expansion state and registers exact headers and parts", asy
       }),
     )
     await app.renderOnce()
-    expect(app.captureCharFrame()).toContain("Thought")
+    expect(app.captureCharFrame()).not.toContain("Thought")
+    expect(app.captureCharFrame()).not.toContain("Reset title")
     expect(app.captureCharFrame()).not.toContain("Reset thought body")
     const thinkingID = groupID(row, 0)
     if (!thinkingID) throw new Error("Missing thinking group ID")
     setExpanded(thinkingID, true)
-    await app.waitForFrame((frame) => frame.includes("Reset thought body"))
-    expect(app.captureCharFrame()).toContain("Reset thought body")
+    await app.renderOnce()
+    expect(app.captureCharFrame()).not.toContain("Reset title")
+    expect(app.captureCharFrame()).not.toContain("Reset thought body")
   } finally {
     app.renderer.destroy()
   }
@@ -308,6 +434,7 @@ function mount(input: {
   setExpanded: (id: string, value: boolean) => void
   message: (id: string) => SessionMessageInfo | undefined
   entry: (entry: SessionEntry) => JSX.Element
+  width?: number
 }) {
   return testRender(
     () => (
@@ -316,13 +443,12 @@ function mount(input: {
           <ThemeProvider mode="dark" source={emptyThemeSource}>
             <context.Provider
               value={{
-                width: 40,
-                terminal: { width: 40, height: 24 },
+                width: input.width ?? 40,
+                terminal: { width: input.width ?? 40, height: 24 },
                 sessionID: "fixture",
                 anchors: input.anchors,
                 groupExpanded: input.expanded,
                 setGroupExpanded: input.setExpanded,
-                thinkingMode: () => "hide",
                 markdownMode: () => "rendered",
                 groupExploration: () => true,
                 legacyTurns: () => false,
@@ -347,6 +473,6 @@ function mount(input: {
         </ConfigProvider>
       </TestTuiContexts>
     ),
-    { width: 40, height: 24 },
+    { width: input.width ?? 40, height: 24 },
   )
 }

@@ -6,9 +6,9 @@ import type { SessionMessageInfo } from "@opencode/client"
 import { createEventStream, createFetch, directory, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
 
-// Regression: a thought group mounted by tail-first backfill (older rows revealed
+// Regression: an exploration group mounted by tail-first backfill (older rows revealed
 // after scrolling to the top) must still toggle when its disclosure is clicked.
-test("clicking a backfilled thought group toggles it", async () => {
+test("clicking a backfilled exploration group toggles it without showing reasoning", async () => {
   await using state = await tmpdir()
   const setup = await createTestRenderer({ width: 112, height: 34, kittyKeyboard: true })
   await setup.renderer.setupTerminal()
@@ -43,6 +43,18 @@ test("clicking a backfilled thought group toggles it", async () => {
           text: `**Turn ${i}**\n\nA fixed thought.`,
           time: { created: i * 10 + 1, completed: i * 10 + 2 },
         },
+        {
+          type: "tool" as const,
+          id: `read-${i}`,
+          name: "read",
+          time: { created: i * 10 + 1, completed: i * 10 + 2 },
+          state: {
+            status: "completed" as const,
+            input: { path: `turn-${i}.txt` },
+            content: [{ type: "text" as const, text: "ok" }] as [{ type: "text"; text: string }],
+            metadata: {},
+          },
+        },
         { type: "text" as const, text: `Turn ${String(i).padStart(2, "0")} answer` },
       ],
     },
@@ -73,11 +85,12 @@ test("clicking a backfilled thought group toggles it", async () => {
     await setup.waitForFrame((frame) => frame.includes("Turn 00 prompt"))
     await setup.waitForVisualIdle({ quietFrames: 3 })
     const lines = setup.captureCharFrame().split("\n")
-    const row = lines.findIndex((line) => line.includes("+ Thought: Turn 0"))
+    const row = lines.findIndex((line) => line.includes("Explored: 1 read"))
     expect(row).toBeGreaterThan(0)
     await setup.mockMouse.click(6, row)
     await setup.waitForVisualIdle({ quietFrames: 3 })
-    expect(setup.captureCharFrame()).toContain("A fixed thought.")
+    expect(setup.captureCharFrame()).toContain("turn-0.txt")
+    expect(setup.captureCharFrame()).not.toContain("A fixed thought.")
   } finally {
     setup.renderer.destroy()
     await task

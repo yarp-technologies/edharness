@@ -335,6 +335,21 @@ test("groups adjacent reasoning parts until a visible boundary", () => {
   ])
 })
 
+test("restores an active reasoning block before its first text arrives", () => {
+  const message = assistant("assistant-1", [{ type: "reasoning", text: "", time: { created: 2 } }])
+  expect(reduceSessionRows([message])).toEqual([
+    {
+      type: "group",
+      kind: "reasoning",
+      completed: false,
+      size: 1,
+      children: [partChild("assistant-1", "reasoning:0")],
+    },
+  ])
+  message.time.completed = 3
+  expect(reduceSessionRows([message])).toEqual([])
+})
+
 test("groups across empty assistant reasoning parts", () => {
   const messages: SessionMessageInfo[] = [
     assistant("assistant-1", [

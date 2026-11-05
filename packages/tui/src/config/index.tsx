@@ -156,7 +156,7 @@ export const Info = Schema.Struct({
       }),
       scrollbar: Schema.optional(Schema.Boolean).annotate({ description: "Show the session transcript scrollbar" }),
       thinking: Schema.optional(Schema.Literals(["show", "hide"])).annotate({
-        description: "Show or hide model reasoning by default",
+        description: "Legacy setting; model reasoning is hidden in the session transcript",
       }),
       grouping: Schema.optional(Schema.Literals(["auto", "none"])).annotate({
         description: "Group related transcript items automatically or render each item separately",

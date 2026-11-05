@@ -1,19 +1,15 @@
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
-import { RGBA, TextAttributes, type MouseEvent } from "@opentui/core"
-import { useRenderer, type JSX } from "@opentui/solid"
+import { Match, Show, Switch } from "solid-js"
+import { TextAttributes, type MouseEvent, type RGBA } from "@opentui/core"
+import type { JSX } from "@opentui/solid"
 import type {
   SessionMessageAssistant,
   SessionMessageAssistantReasoning,
   SessionMessageAssistantText,
 } from "@opencode/client"
 import { Spinner } from "../../component/spinner"
-import { createSyntaxStyleMemo, useTheme, useThemes } from "../../context/theme"
-import { reasoningSummary } from "../../context/thinking"
+import { useTheme, useThemes } from "../../context/theme"
 import { usePlugin } from "../../plugin/context"
-import { SplitBorder } from "../../ui/border"
-import { Locale } from "../../util/locale"
 import { use } from "./render-context"
-import { generateThinkingSyntax } from "./thinking-syntax"
 import { canonicalToolName } from "../../util/tool-display"
 
 export const INLINE_TOOL_ICON_WIDTH = 2
@@ -46,127 +42,12 @@ export function ReasoningPart(props: {
   message: SessionMessageAssistant
 }) {
   const theme = useTheme()
-  const { currentSyntax: syntax } = useThemes()
-  const renderer = useRenderer()
-  const thinkingSyntax = createSyntaxStyleMemo(() =>
-    generateThinkingSyntax(syntax(), theme.text.muted, renderer.nativeScene),
-  )
-  const ctx = use()
-  // Collapsed by default in hide mode: a single line throughout, so the
-  // layout never shifts. Click to open the full markdown block, click to close.
-  const [expanded, setExpanded] = createSignal(false)
-
-  const content = createMemo(() => reasoningContent(props.part))
-  const isDone = createMemo(
-    () => props.part.time?.completed !== undefined || props.message.time.completed !== undefined,
-  )
-  const inMinimal = createMemo(() => ctx.thinkingMode() === "hide")
-  const duration = createMemo(() => {
-    const end = props.part.time?.completed ?? props.message.time.completed
-    const start = props.part.time?.created ?? props.message.time.created
-    return end === undefined ? 0 : Math.max(0, end - start)
-  })
-  const summary = createMemo(() => reasoningSummary(content()))
-  const toggle = () => {
-    if (!inMinimal()) return
-    setExpanded((prev) => !prev)
-  }
-
   return (
-    <Show when={content()}>
-      <box paddingLeft={3} flexDirection="column" flexShrink={0}>
-        <box
-          border={!inMinimal() || expanded() ? ["left"] : undefined}
-          customBorderChars={SplitBorder.customBorderChars}
-          borderColor={theme.decrease(theme.background.base)}
-          paddingLeft={!inMinimal() || expanded() ? 1 : 0}
-        >
-          <box onMouseUp={toggle}>
-            <ReasoningHeader
-              toggleable={inMinimal()}
-              open={!inMinimal() || expanded()}
-              done={isDone()}
-              title={inMinimal() && !expanded() ? summary().title : null}
-              duration={isDone() ? Locale.duration(duration()) : undefined}
-            />
-          </box>
-        </box>
-        <Show when={!inMinimal() || expanded()}>
-          <box marginTop={1}>
-            <box
-              border={["left"]}
-              customBorderChars={SplitBorder.customBorderChars}
-              borderColor={theme.decrease(theme.background.base)}
-              paddingLeft={inMinimal() ? 3 : 1}
-            >
-              <code
-                filetype="markdown"
-                drawUnstyledText={false}
-                streaming={true}
-                syntaxStyle={thinkingSyntax()}
-                content={content()}
-                conceal={ctx.markdownMode() === "rendered"}
-                fg={theme.text.muted}
-              />
-            </box>
-          </box>
-        </Show>
-      </box>
+    <Show when={props.part.time?.completed === undefined && props.message.time.completed === undefined}>
+      <InlineToolRow icon="" color={theme.text.base} complete={false} pending="Думаю…" spinner>
+        Думаю…
+      </InlineToolRow>
     </Show>
-  )
-}
-
-export function reasoningContent(part: SessionMessageAssistantReasoning) {
-  // OpenRouter encrypts some reasoning blocks; drop the placeholder.
-  return part.text.replace("[REDACTED]", "").trim()
-}
-
-function ReasoningHeader(props: {
-  toggleable: boolean
-  open: boolean
-  done: boolean
-  title: string | null
-  duration?: string
-}) {
-  const theme = useTheme()
-  const fg = () =>
-    props.open
-      ? RGBA.fromValues(
-          theme.text.feedback.warning.base.r,
-          theme.text.feedback.warning.base.g,
-          theme.text.feedback.warning.base.b,
-          0.6,
-        )
-      : theme.text.feedback.warning.base
-
-  return (
-    <Switch>
-      <Match when={!props.done}>
-        <box flexDirection="row">
-          <Spinner color={fg()}>{props.title ? "Thinking: " + props.title : "Thinking"}</Spinner>
-        </box>
-      </Match>
-      <Match when={true}>
-        <text fg={fg()} wrapMode="none">
-          <Show when={props.toggleable}>
-            <span>{props.open ? "- " : "+ "}</span>
-          </Show>
-          <span>Thought</span>
-          <Show when={props.title || props.duration}>
-            <span>: </span>
-          </Show>
-          <Show when={props.title}>
-            <span>{props.title}</span>
-          </Show>
-          <Show when={props.duration}>
-            <span>
-              {props.title ? " · " : ""}
-              {props.duration}
-            </span>
-          </Show>
-        </text>
-      </Match>
-    </Switch>
   )
 }
 

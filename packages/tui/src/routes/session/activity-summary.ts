@@ -7,7 +7,6 @@ import type {
 import { canonicalToolName, executeCalls } from "../../util/tool-display"
 import { visitEntries } from "./anchor-view"
 import { instructionPaths, type PartRef, type SessionEntry, type SessionNode } from "./grouping/session"
-import { reasoningContent } from "./message-parts"
 import { resolvePart } from "./rows"
 
 type Item = {
@@ -40,32 +39,31 @@ export function summarizeActivity(
   )
   const summary = activitySummary(items, files.size, closed)
   const current = items.find((item) => isActive(item, closed))
-  return { ...summary, label: summary.label || (current ? busyLabel(current.part) : "") }
+  const thinking = items.find((item) => item.part.type === "reasoning" && isActive(item, closed))
+  return {
+    ...summary,
+    label: thinking ? busyLabel(thinking.part) : summary.label || (current ? busyLabel(current.part) : ""),
+  }
 }
 
 /** Status for a running item, independent of its details, so it doesn't flicker as they arrive. */
 export function busyLabel(part: Item["part"]) {
-  if (part.type === "reasoning") return "Thinking…"
+  if (part.type === "reasoning") return "Думаю…"
   const name = canonicalToolName(part.name)
   const noun = name === "shell" ? "command" : name === "execute" ? "code" : name
   return `${part.state.status === "streaming" ? "Preparing" : "Running"} ${noun}…`
 }
 
 /**
- * Low verbosity's activity summary, e.g. "3 commands, 1 edit, 2 thoughts, 4 reads".
+ * Low verbosity's activity summary, e.g. "3 commands, 1 edit, 4 reads".
  * The label counts only finished work; running items are reported through `active`.
  * Code-mode `execute` counts its finished nested calls rather than itself.
  * Instructions count distinct loaded files, matching the instruction subgroup.
- * Once a later row closes the group, its thoughts count as finished, as in Medium.
  */
 export function activitySummary(items: readonly Item[], instructions: number, closed = false) {
-  const counts = { command: 0, edit: 0, thought: 0, read: 0, tool: 0, instruction: instructions }
+  const counts = { command: 0, edit: 0, read: 0, tool: 0, instruction: instructions }
   items.forEach((item) => {
-    if (item.part.type === "reasoning") {
-      // Redacted-only reasoning renders nothing, so it isn't a visible thought.
-      if (!isActive(item, closed) && reasoningContent(item.part)) counts.thought++
-      return
-    }
+    if (item.part.type === "reasoning") return
     const name = canonicalToolName(item.part.name)
     if (name === "execute") {
       const calls = executeCalls(
