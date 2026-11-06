@@ -1848,6 +1848,7 @@ function TurnTokenToolCalls(props: { tools: SessionMessageAssistantTool[] }) {
 }
 
 function turnTokenToolSummary(tool: SessionMessageAssistantTool) {
+  if (canonicalToolName(tool.name) === "shell") return ""
   const data = tool.state.input
   if (typeof data === "string") return data
   const primaryKey = ["command", "id", "pattern", "url", "query", "path", "description", "code"].find(
@@ -2089,7 +2090,10 @@ function SessionNoticeMessageV2(props: { message: SessionMessageInfo }) {
     return state() ?? "finished"
   }
   const heading = () => `${state() === "completed" ? "↳" : "!"} ${actor()} ${status()}`
-  const suffix = () => Locale.truncateWidth(` · ${description()}`, Math.max(0, ctx.width - 3 - stringWidth(heading())))
+  const suffix = () =>
+    source() === "shell"
+      ? ""
+      : Locale.truncateWidth(` · ${description()}`, Math.max(0, ctx.width - 3 - stringWidth(heading())))
   const color = () => {
     if (state() === "error") return theme.text.feedback.error.base
     if (state() === "cancelled") return theme.text.feedback.warning.base
@@ -2945,16 +2949,30 @@ function BlockTool(props: BlockToolProps) {
 const SHELL_DISPLAY_LIMIT = 1024 * 1024
 
 function Shell(props: ToolProps) {
+  const theme = useTheme()
+  const permission = useToolPermission(() => props.part)
+  const running = () => props.part.state.status === "streaming" || props.part.state.status === "running"
+  const failed = () =>
+    props.part.state.status === "error" ||
+    props.metadata.timeout === true ||
+    typeof props.metadata.signal === "string" ||
+    (typeof props.metadata.exit === "number" && props.metadata.exit !== 0)
+  const label = () => {
+    if (running()) return "Выполняю команду…"
+    if (failed()) return "Ошибка команды"
+    if (props.metadata.status === "running") return "Команда запущена в фоне"
+    return "Команда выполнена"
+  }
   return (
-    <ShellDisplay
-      part={props.part}
-      shellID={stringValue(props.metadata.shellID)}
-      command={stringValue(props.input.command)}
-      workdir={stringValue(props.input.workdir)}
-      status={props.part.state.status}
-      background={props.part.state.status === "completed" && props.metadata.status === "running"}
-      output={stringValue(props.metadata.shellID) ? undefined : props.output}
-    />
+    <InlineToolRow
+      icon={failed() ? "✗" : "✓"}
+      color={permission() ? theme.text.feedback.warning.base : failed() ? theme.text.feedback.error.base : theme.text.muted}
+      complete={!running()}
+      pending={label()}
+      spinner={running()}
+    >
+      {label()}
+    </InlineToolRow>
   )
 }
 

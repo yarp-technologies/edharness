@@ -102,6 +102,8 @@ test.each([40, 120])("shell completion notices do not navigate at width %s", asy
   try {
     await setup.waitForFrame((frame) => frame.includes("Shell cancelled"))
     await setup.waitForVisualIdle()
+    expect(setup.captureCharFrame()).not.toContain("Long command")
+    expect(setup.captureCharFrame()).not.toContain("Cancelled command")
     const find = (root: Renderable): ScrollBoxRenderable | undefined =>
       root instanceof ScrollBoxRenderable && root.getRenderable("history-19")
         ? root

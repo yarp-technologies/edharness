@@ -149,8 +149,8 @@ test.each([0, 1, 3])(
       expect(expand.frames).toEqual([expand.row])
       const expanded = lines(setup.captureCharFrame())
       expect(expanded[expand.row]).toContain(`− ${label}`)
-      expect(expanded.slice(expand.row + 1).join("\n")).toContain(`echo turn ${turn} step 0`)
-      expect(expanded.slice(0, expand.row).join("\n")).not.toContain(`echo turn ${turn} step`)
+      expect(expanded.slice(expand.row + 1).join("\n")).toContain("Команда выполнена")
+      expect(expanded.join("\n")).not.toContain(`echo turn ${turn} step`)
 
       const collapse = await toggle(setup, label)
       expect(collapse.frames).toEqual([expand.row])
@@ -168,7 +168,8 @@ test("a low activity summary that ends the transcript opens like v2 at the botto
       const expanded = lines(setup.captureCharFrame())
       const row = expanded.findIndex((line) => line.includes(`− ${label}`))
       expect(row).toBeLessThan(expand.row)
-      expect(expanded.slice(row + 1).join("\n")).toContain("running step 0 output")
+      expect(expanded.slice(row + 1).join("\n")).toContain("Команда выполнена")
+      expect(expanded.join("\n")).not.toContain("running step 0 output")
       expect(expanded.join("\n")).not.toContain("Jump to latest")
 
       const collapse = await toggle(setup, label)
