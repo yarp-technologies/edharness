@@ -47,10 +47,10 @@ Keep shell tracing disabled while handling credentials, and don't use redirect o
 opened_api() (
   set +x
   base_url=${OPENED_BASE_URL:-https://demo.opened.site}
-  path=${1:?Provide an API path beginning with /}
+  api_path=${1:?Provide an API path beginning with /}
   shift
-  case "$path" in /*) ;; *) printf '%s\n' 'Invalid API path' >&2; exit 1 ;; esac
-  route=${path%%\?*}
+  case "$api_path" in /*) ;; *) printf '%s\n' 'Invalid API path' >&2; exit 1 ;; esac
+  route=${api_path%%\?*}
   case "$route" in
     *%*|*'#'*|*'\'*|*//*|*/./*|*/.|*/../*|*/..)
       printf '%s\n' 'Invalid API path' >&2; exit 1 ;;
@@ -65,7 +65,7 @@ opened_api() (
   key=$(cat "$key_file") || exit 1
   case "$key" in *[!A-Za-z0-9_-]*|'') printf '%s\n' 'Invalid Opened key format' >&2; exit 1 ;; esac
   printf 'header = "Authorization: Bearer %s"\n' "$key" |
-    curl --disable --silent --show-error --fail-with-body --config - "$@" -- "${base_url%/}/api$path"
+    curl --disable --silent --show-error --fail-with-body --config - "$@" -- "${base_url%/}/api$api_path"
 )
 ```
 
