@@ -286,6 +286,43 @@ const runPermissionCommand = (
 describe("ShellTool scanner permissions", () => {
   const test = isWindows || !Bun.which("sh") ? permissionIt.live.skip : permissionIt.live
 
+  test("an empty case pattern executes when its commands are approved", () =>
+    withScanner((registry, fixture) =>
+      Effect.gen(function* () {
+        const saved = yield* PermissionSaved.Service
+        const location = yield* Location.Service
+        yield* saved.add({ projectID: location.project.id, action: "shell", resources: ["printf *"] })
+        const marker = path.join(fixture.active, "marker")
+        const command = "case '' in ''|x) printf hello > marker;; *) printf other;; esac"
+        const result = yield* runPermissionCommand(registry, command, marker, [])
+        expect(result.exit).toMatchObject({
+          _tag: "Success",
+          value: { status: "completed", metadata: { exit: 0 } },
+        })
+        expect(yield* Effect.promise(() => Bun.file(marker).text())).toBe("hello")
+      }),
+    ))
+
+  test("an empty case pattern cannot bypass a shell permission denial", () =>
+    withScanner((registry, fixture) =>
+      Effect.gen(function* () {
+        const agents = yield* Agent.Service
+        yield* agents.transform((editor) =>
+          editor.update(toolIdentity.agent, (agent) => {
+            agent.permissions = [{ action: "shell", resource: "printf hello > marker", effect: "deny" }]
+          }),
+        )
+        const marker = path.join(fixture.active, "marker")
+        const command = "case '' in ''|x) printf hello > marker;; *) printf other;; esac"
+        const denied = yield* runPermissionCommand(registry, command, marker, [])
+        expect(denied.exit).toMatchObject({
+          _tag: "Success",
+          value: { status: "error", error: { message: expect.stringContaining("Permission denied: shell") } },
+        })
+        expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+      }),
+    ))
+
   test("declarations reuse approvals while substitutions retain reject/once/always behavior", () =>
     withScanner((registry, fixture) =>
       Effect.gen(function* () {

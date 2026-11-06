@@ -374,7 +374,8 @@ function finishBashCommand(state: BashState, boundary = false, newline = false) 
   if (state.compoundEnd && state.words.length > 0) state.invalid ??= "invalid-structure"
   const name = state.commandWordIndex
   const inHeader = bashInHeader(state)
-  if (name >= 0 && !state.words[name]) state.invalid ??= "invalid-structure"
+  const caseHeader = inHeader && state.structures.at(-1)?.kind === "case"
+  if (name >= 0 && !state.words[name] && !caseHeader) state.invalid ??= "invalid-structure"
   if (name >= 0 && !inHeader) {
     const resource = state.input.slice(state.commandStart, state.wordEnd).replace(/^[ \t\n]+|[ \t\n]+$/g, "")
     const command: Command = {

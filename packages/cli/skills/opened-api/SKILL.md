@@ -63,7 +63,7 @@ opened_api() (
   mode=$(stat -c '%a' "$key_file" 2>/dev/null) || mode=$(stat -f '%Lp' "$key_file" 2>/dev/null) || exit 1
   [ "$mode" = 600 ] || { printf '%s\n' 'Opened key file must have mode 600' >&2; exit 1; }
   key=$(cat "$key_file") || exit 1
-  case "$key" in ''|*[!A-Za-z0-9_-]*) printf '%s\n' 'Invalid Opened key format' >&2; exit 1 ;; esac
+  case "$key" in *[!A-Za-z0-9_-]*|'') printf '%s\n' 'Invalid Opened key format' >&2; exit 1 ;; esac
   printf 'header = "Authorization: Bearer %s"\n' "$key" |
     curl --disable --silent --show-error --fail-with-body --config - "$@" -- "${base_url%/}/api$path"
 )
