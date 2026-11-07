@@ -228,6 +228,16 @@ const resolveCatalogModel = Effect.fn("ModelResolver.resolveCatalogModel")(funct
   credential?: Credential.Value,
   dependencies?: Dependencies,
 ) {
+  if (model.providerID === "opened") {
+    const scope = credential?.type === "oauth" ? credential.metadata?.scope : undefined
+    if (typeof scope !== "string" || !scope.trim().split(/\s+/).includes("llm:use"))
+      return yield* new ModelConfigurationError({
+        providerID: model.providerID,
+        modelID: model.id,
+        package: model.package ?? "unknown",
+        detail: "OpenEd authorization does not include llm:use. Reconnect to OpenEd with that permission.",
+      })
+  }
   if (Provider.isAISDK(model.package)) {
     const resolved = prepareRuntimeModel(model)
     const loadAISDK = dependencies?.loadAISDK
@@ -247,10 +257,13 @@ const resolveCatalogModel = Effect.fn("ModelResolver.resolveCatalogModel")(funct
   return yield* Effect.try({
     try: () => {
       const runtime = module.model(resolved.modelID ?? resolved.id, settings)
-      const key = credential?.type === "key" ? credential.key : !credential ? configured.apiKey : undefined
       return LanguageModel.update(runtime, {
-        ...(resolved.providerID === "yarp-neuro"
-          ? { route: runtime.route.with({ auth: yarpNeuroAuth(typeof key === "string" ? key : undefined) }) }
+        ...(resolved.providerID === "opened"
+          ? {
+              route: runtime.route.with({
+                auth: openedAuth(credential?.type === "oauth" ? credential.access : undefined),
+              }),
+            }
           : {}),
         provider: resolved.canonical ?? resolved.providerID,
         compatibility: resolved.compatibility
@@ -388,6 +401,19 @@ function unresolvedProviderVariables(model: RuntimeInfo, baseURL: string) {
   })
 }
 
+function openedAuth(token: string | undefined) {
+  const endpoint = new URL(process.env.OPENED_LLM_URL ?? "https://llm.opened.site/v1")
+  const basePath = endpoint.pathname.replace(/\/$/, "")
+  return Auth.custom((input) => {
+    const headers = Headers.remove(input.headers, "authorization")
+    if (!token || !URL.canParse(input.url)) return Effect.succeed(headers)
+    const url = new URL(input.url)
+    if (url.origin !== endpoint.origin || (url.pathname !== basePath && !url.pathname.startsWith(`${basePath}/`)))
+      return Effect.succeed(headers)
+    return Effect.succeed(Headers.set(headers, "authorization", `Bearer ${token}`))
+  })
+}
+
 const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credential: Credential.Value | undefined) => {
   if (!credential) return {}
   if (credential.type === "key") return { apiKey: credential.key }
@@ -398,17 +424,6 @@ const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credent
   // request past the package's own credential check.
   if (model.providerID === Provider.ID.azure) return tokenSettings(specifier, "azure-cli")
   return {}
-}
-
-function yarpNeuroAuth(key: string | undefined) {
-  return Auth.custom((input) => {
-    const headers = Headers.remove(Headers.remove(input.headers, "authorization"), "x-bf-vk")
-    if (!key || !URL.canParse(input.url)) return Effect.succeed(headers)
-    const url = new URL(input.url)
-    if (url.origin !== "https://neuro.tfcp.ru" || (url.pathname !== "/v1" && !url.pathname.startsWith("/v1/")))
-      return Effect.succeed(headers)
-    return Effect.succeed(Headers.set(headers, "x-bf-vk", key))
-  })
 }
 
 const tokenSettings = (specifier: string, token: string) => {

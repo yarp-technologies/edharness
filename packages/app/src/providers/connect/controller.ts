@@ -335,7 +335,10 @@ export function createProviderConnectionController(options: {
       polling.attempt = undefined
       dispatch({
         type: "auth.error",
-        error: language.t(isConsole() ? "provider.connect.console.expired" : "provider.connect.oauth.expired"),
+        error:
+          options.provider() === "opened"
+            ? language.t("provider.connect.opened.authorizationExpired")
+            : language.t(isConsole() ? "provider.connect.console.expired" : "provider.connect.oauth.expired"),
       })
 
       return
@@ -484,7 +487,7 @@ export function createProviderConnectionController(options: {
         location: location(),
       })
       .then((response) => {
-        if (isConsole() && platform.platform === "desktop") {
+        if (options.provider() !== "opened" && isConsole() && platform.platform === "desktop") {
           const url = new URL(response.data.url)
           url.searchParams.set("client_id", "opencode-desktop")
           // Lets the Console return link focus the window that started the sign-in.

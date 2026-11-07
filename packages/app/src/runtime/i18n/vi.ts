@@ -148,7 +148,7 @@ export const dict = {
   "dialog.model.empty": "Không có kết quả mô hình",
   "dialog.model.manage": "Quản lý mô hình",
   "dialog.model.manage.description": "Tùy chỉnh mô hình nào xuất hiện trong bộ chọn mô hình.",
-  "dialog.model.unpaid.freeModels.title": "Các mô hình miễn phí do YarpNeuro cung cấp",
+  "dialog.model.unpaid.freeModels.title": "Các mô hình miễn phí do OpenEd cung cấp",
   "dialog.model.unpaid.addMore.title": "Thêm nhiều mô hình từ các nhà cung cấp phổ biến",
   "dialog.model.unpaid.viewMoreProviders": "Xem hơn 70 nhà cung cấp khác",
   "dialog.provider.viewAll": "Hiển thị thêm nhà cung cấp",

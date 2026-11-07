@@ -146,7 +146,7 @@ export const dict = {
   "dialog.model.empty": "لا توجد نتائج للنماذج",
   "dialog.model.manage": "إدارة النماذج",
   "dialog.model.manage.description": "تخصيص النماذج التي تظهر في محدد النماذج.",
-  "dialog.model.unpaid.freeModels.title": "نماذج مجانية مقدمة من YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "نماذج مجانية مقدمة من OpenEd",
   "dialog.model.unpaid.addMore.title": "إضافة المزيد من النماذج من موفرين مشهورين",
   "dialog.model.unpaid.viewMoreProviders": "عرض أكثر من 70 موفرًا إضافيًا",
   "dialog.provider.viewAll": "عرض المزيد من الموفرين",

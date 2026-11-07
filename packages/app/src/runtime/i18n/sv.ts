@@ -341,7 +341,7 @@ export const dict = {
   "dialog.model.empty": "Inga modellresultat",
   "dialog.model.manage": "Hantera modeller",
   "dialog.model.manage.description": "Anpassa vilka modeller som visas i modellväljaren.",
-  "dialog.model.unpaid.freeModels.title": "Gratis modeller tillhandahålls av YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Gratis modeller tillhandahålls av OpenEd",
   "dialog.model.unpaid.addMore.title": "Lägg till fler modeller från populära leverantörer",
   "dialog.model.unpaid.viewMoreProviders": "Se fler än 70 leverantörer",
   "dialog.provider.viewAll": "Visa fler leverantörer",

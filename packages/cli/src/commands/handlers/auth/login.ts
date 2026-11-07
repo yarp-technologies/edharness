@@ -189,8 +189,21 @@ export const oauthLogin = Effect.fn("cli.auth.login.oauth")(function* (
   )
   progress.stop("Authorization started")
   log.info(attempt.instructions)
-  log.info(attempt.url)
-  if (process.stdin.isTTY && process.stdout.isTTY) yield* openUrl(attempt.url)
+  if (integration.id === "opened") {
+    if (!process.stdin.isTTY || !process.stdout.isTTY)
+      return yield* Effect.fail(
+        new Error("OpenEd authorization needs a local interactive browser. Start a new attempt in a desktop session."),
+      )
+    const browser = yield* Effect.promise(() => import("@opencode/util/open"))
+    yield* Effect.tryPromise({
+      try: () => browser.openUrl(attempt.url),
+      catch: () =>
+        new Error("Could not open the browser. Start a new OpenEd authorization attempt in a desktop session."),
+    })
+  } else {
+    log.info(attempt.url)
+    if (process.stdin.isTTY && process.stdout.isTTY) yield* openUrl(attempt.url)
+  }
 
   if (attempt.mode === "code") {
     yield* requireInteractive("This login requires an interactive terminal to enter the authorization code")
@@ -220,6 +233,8 @@ export const oauthLogin = Effect.fn("cli.auth.login.oauth")(function* (
     return
   }
   if (status.status === "failed") yield* Effect.fail(new Error(status.message))
+  if (integration.id === "opened")
+    yield* Effect.fail(new Error("OpenEd authorization expired. Start a new connection attempt."))
   yield* Effect.fail(new Error("Authorization expired"))
 })
 

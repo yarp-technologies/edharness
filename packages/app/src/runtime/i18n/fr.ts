@@ -364,7 +364,7 @@ export const dict = {
   "dialog.model.empty": "Aucun résultat de modèle",
   "dialog.model.manage": "Gérer les modèles",
   "dialog.model.manage.description": "Personnalisez les modèles qui apparaissent dans le sélecteur.",
-  "dialog.model.unpaid.freeModels.title": "Modèles gratuits fournis par YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Modèles gratuits fournis par OpenEd",
   "dialog.model.unpaid.addMore.title": "Ajouter plus de modèles de fournisseurs populaires",
   "dialog.model.unpaid.viewMoreProviders": "Voir plus de 70 autres fournisseurs",
   "dialog.provider.viewAll": "Voir plus de fournisseurs",

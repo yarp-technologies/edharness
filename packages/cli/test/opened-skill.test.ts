@@ -1,12 +1,13 @@
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
-import { ShellParse } from "../../core/src/shell/parse"
 
-test("the bundled Opened API function passes shell permission scanning", async () => {
-  const skill = await Bun.file(new URL("../skills/opened-api/SKILL.md", import.meta.url)).text()
-  const shell = skill.match(/```sh\n([\s\S]*?)\n```/)?.[1]
-  expect(shell).toBeDefined()
-  const scanned = await Effect.runPromise(ShellParse.scan(`${shell}\nopened_api '/roadmaps'`, "/bin/sh", "/workspace"))
-  expect(scanned.commands.some((command) => command.resource.startsWith("curl "))).toBe(true)
-  expect(scanned.commands.some((command) => command.resource.startsWith("opened_api "))).toBe(true)
+test("OpenEd skills use EdHarness's protected connection", async () => {
+  const api = await Bun.file(new URL("../skills/opened-api/SKILL.md", import.meta.url)).text()
+  const init = await Bun.file(new URL("../skills/opened-init/SKILL.md", import.meta.url)).text()
+
+  expect(api).toContain("native `opened_api` tool")
+  expect(api).toContain("protected integration storage")
+  expect(api).not.toContain("OPENED_API_KEY")
+  expect(api).not.toContain("curl")
+  expect(init).toContain("native **Connect OpenEd** flow")
+  expect(init).not.toContain("scripts/opened-init.mjs")
 })

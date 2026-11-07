@@ -154,7 +154,7 @@ export const dict = {
   "dialog.model.empty": "Nėra modelio rezultatų",
   "dialog.model.manage": "Tvarkyti modelius",
   "dialog.model.manage.description": "Tinkinkite, kurie modeliai rodomi modelio parinkiklyje.",
-  "dialog.model.unpaid.freeModels.title": "Nemokami YarpNeuro modeliai",
+  "dialog.model.unpaid.freeModels.title": "Nemokami OpenEd modeliai",
   "dialog.model.unpaid.addMore.title": "Pridėkite daugiau populiarių tiekėjų modelių",
   "dialog.model.unpaid.viewMoreProviders": "Žr. daugiau nei 70 tiekėjų",
   "dialog.provider.viewAll": "Rodyti daugiau teikėjų",

@@ -270,7 +270,7 @@ export const DialogConnectProvider: Component<{
 const CLAUDE_CODE_SETUP_URL = "https://code.claude.com/docs/en/setup"
 
 // The TUI's integration groups and order, with connected integrations pulled up into their own group first.
-const POPULAR = ["yarp-neuro", "opencode", "opencode-go", "openai", "github-copilot", "anthropic", "google"]
+const POPULAR = ["opened", "opencode", "opencode-go", "openai", "github-copilot", "anthropic", "google"]
 
 function ProviderPicker(props: { directory?: string; onSelect: (provider: string) => void; onPrepare?: () => void }) {
   const integrations = useIntegrations(() => props.directory)
@@ -747,6 +747,9 @@ function ProviderConnection(props: {
     const authorization = controller.authorization()
 
     if (!authorization) return
+
+    if (props.provider === "opened") return
+
     const userCode = new URL(authorization.url).searchParams.get("user_code")
 
     if (userCode) return userCode
@@ -1427,6 +1430,12 @@ function ProviderConnection(props: {
     return (
       <div class="flex flex-col gap-5 px-3 text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted">
         <div>{language.t("provider.connect.oauth.auto.description", { provider: provider().name })}</div>
+        <Show when={props.provider === "opened"}>
+          <div>{language.t("provider.connect.opened.authorizationNote")}</div>
+        </Show>
+        <Show when={props.provider === "opened" && controller.browserFailed()}>
+          <div>{language.t("provider.connect.opened.browserFailed")}</div>
+        </Show>
         <StatusRow>{language.t("provider.connect.status.waiting")}</StatusRow>
         <div class="flex flex-wrap items-center gap-2">
           <Button variant="neutral" icon="arrow-up-right" onClick={() => void controller.auth.open()}>

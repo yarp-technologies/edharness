@@ -142,7 +142,7 @@ export const dict = {
   "dialog.model.empty": "Hiç hili model netijesi ýok",
   "dialog.model.manage": "Modelleri dolandyryň",
   "dialog.model.manage.description": "Model saýlaýjysynda haýsy modelleriň peýda bolýandygyny düzüň.",
-  "dialog.model.unpaid.freeModels.title": "YarpNeuro tarapyndan mugt modeller",
+  "dialog.model.unpaid.freeModels.title": "OpenEd tarapyndan mugt modeller",
   "dialog.model.unpaid.addMore.title": "Meşhur üpjün edijilerden has köp model goşuň",
   "dialog.model.unpaid.viewMoreProviders": "Moreene-de 70+ üpjün edijä serediň",
   "dialog.provider.viewAll": "Has köp üpjün edijini görkeziň",

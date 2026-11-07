@@ -154,7 +154,7 @@ export const dict = {
   "dialog.model.manage": "Управление моделями",
   "dialog.model.manage.description": "Настройте, какие модели отображаются при выборе модели",
 
-  "dialog.model.unpaid.freeModels.title": "Бесплатные модели от YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Бесплатные модели от OpenEd",
   "dialog.model.unpaid.addMore.title": "Добавьте больше моделей от популярных провайдеров",
   "dialog.model.unpaid.viewMoreProviders": "Посмотреть ещё более 70 провайдеров",
 

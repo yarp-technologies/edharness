@@ -312,9 +312,7 @@ export const layer = Layer.effect(
         messages: boundImages(unsupportedParts(shaped.messages, model.capabilities, model.model.provider)),
         tools: [
           ...Array.from(hooked, ([name, t]) => ({ ...t, name })),
-          ...(kind === "primary" &&
-          input.hostedImageGeneration &&
-          (model.ref.providerID === "yarp-neuro" || model.providerHostedImageGeneration)
+          ...(kind === "primary" && input.hostedImageGeneration && model.providerHostedImageGeneration
             ? [imageGeneration()]
             : []),
         ],

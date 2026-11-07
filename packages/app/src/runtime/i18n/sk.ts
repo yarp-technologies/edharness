@@ -167,7 +167,7 @@ export const dict = {
   "dialog.model.empty": "Nenašli sa žiadne modely",
   "dialog.model.manage": "Spravovať modely",
   "dialog.model.manage.description": "Prispôsobte si, ktoré modely sa zobrazia vo výbere modelov.",
-  "dialog.model.unpaid.freeModels.title": "Bezplatné modely poskytované YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Bezplatné modely poskytované OpenEd",
   "dialog.model.unpaid.addMore.title": "Pridať ďalšie modely od populárnych poskytovateľov",
   "dialog.model.unpaid.viewMoreProviders": "Zobraziť viac ako 70 ďalších poskytovateľov",
   "dialog.provider.viewAll": "Zobraziť viac poskytovateľov",

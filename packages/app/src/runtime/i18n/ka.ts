@@ -141,7 +141,7 @@ export const dict = {
   "dialog.model.empty": "მოდელის შედეგები არ არის",
   "dialog.model.manage": "მოდელების მართვა",
   "dialog.model.manage.description": "მოარგეთ რომელი მოდელები გამოჩნდება მოდელის ამომრჩეველში.",
-  "dialog.model.unpaid.freeModels.title": "უფასო მოდელები მოწოდებულია YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "უფასო მოდელები მოწოდებულია OpenEd",
   "dialog.model.unpaid.addMore.title": "დაამატე მეტი მოდელები პოპულარული პროვაიდერებისგან",
   "dialog.model.unpaid.viewMoreProviders": "იხილეთ 70+ სხვა პროვაიდერი",
   "dialog.provider.viewAll": "აჩვენე მეტი პროვაიდერი",

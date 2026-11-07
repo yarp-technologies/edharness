@@ -360,7 +360,7 @@ export const dict = {
   "dialog.model.empty": "Nenhum resultado de modelo",
   "dialog.model.manage": "Gerenciar modelos",
   "dialog.model.manage.description": "Personalizar quais modelos aparecem no seletor de modelos.",
-  "dialog.model.unpaid.freeModels.title": "Modelos gratuitos fornecidos pelo YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Modelos gratuitos fornecidos pelo OpenEd",
   "dialog.model.unpaid.addMore.title": "Adicionar mais modelos de provedores populares",
   "dialog.model.unpaid.viewMoreProviders": "Ver mais de 70 provedores",
   "dialog.provider.viewAll": "Ver mais provedores",

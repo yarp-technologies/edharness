@@ -4,8 +4,8 @@ import os from "node:os"
 import path from "node:path"
 import { isolatedEnv } from "./fixture/environment"
 
-test("only YarpNeuro models are exposed when other providers are configured", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "yncode-provider-catalog-"))
+test("only OpenEd models are exposed when other providers are configured", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "opened-provider-catalog-"))
   try {
     const child = Bun.spawn(
       [process.execPath, "run", path.join(import.meta.dir, "../src/index.ts"), "--standalone", "models"],
@@ -14,7 +14,7 @@ test("only YarpNeuro models are exposed when other providers are configured", as
         env: isolatedEnv(root, {
           OPENCODE_CONFIG_CONTENT: JSON.stringify({
             providers: {
-              "yarp-neuro": { models: { allowed: {} } },
+              opened: { models: { allowed: {} } },
               "custom-provider": {
                 package: "@opencode/ai/providers/openai/responses",
                 models: { blocked: {} },
@@ -32,7 +32,7 @@ test("only YarpNeuro models are exposed when other providers are configured", as
       child.exited,
     ])
     expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: "" })
-    expect(stdout.trim().split("\n")).toEqual(["yarp-neuro/allowed"])
+    expect(stdout.trim().split("\n")).toEqual(["opened/allowed"])
   } finally {
     await fs.rm(root, { recursive: true, force: true })
   }

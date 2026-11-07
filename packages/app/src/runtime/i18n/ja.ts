@@ -148,7 +148,7 @@ export const dict = {
   "dialog.model.empty": "モデルが見つかりません",
   "dialog.model.manage": "モデルを管理",
   "dialog.model.manage.description": "モデルセレクターに表示するモデルをカスタマイズします。",
-  "dialog.model.unpaid.freeModels.title": "YarpNeuroが提供する無料モデル",
+  "dialog.model.unpaid.freeModels.title": "OpenEdが提供する無料モデル",
   "dialog.model.unpaid.addMore.title": "人気のプロバイダーからモデルを追加",
   "dialog.model.unpaid.viewMoreProviders": "その他70以上のプロバイダーを見る",
   "dialog.provider.viewAll": "さらにプロバイダーを表示",

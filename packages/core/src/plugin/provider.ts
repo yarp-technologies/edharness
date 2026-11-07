@@ -28,11 +28,11 @@ import { SapAICorePlugin } from "./provider/sap-ai-core.js"
 import { VLLMPlugin } from "./provider/vllm.js"
 import { XAIPlugin } from "./provider/xai.js"
 import { ZenmuxPlugin } from "./provider/zenmux.js"
-import { YarpNeuroPlugin } from "./provider/yarp-neuro.js"
+import { OpenedPlugin } from "./provider/opened.js"
 import type { PluginInternal } from "./internal.js"
 
 export const ProviderPlugins: PluginInternal.InternalPlugin[] = [
-  YarpNeuroPlugin,
+  OpenedPlugin,
   AmazonBedrockPlugin,
   AzurePlugin,
   CerebrasPlugin,

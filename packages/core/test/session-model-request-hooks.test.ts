@@ -47,24 +47,20 @@ const transport = SessionModelTransport.Service.of({
 })
 
 describe("SessionModelRequest HTTP hooks", () => {
-  it.effect("advertises YarpNeuro's hosted image tool only for allowed primary requests", () =>
+  it.effect("does not advertise the hosted image tool for OpenEd models", () =>
     Effect.gen(function* () {
       const requests = yield* SessionModelRequest.Service.pipe(Effect.provide(SessionModelRequest.layer))
-      const yarp = SessionRunnerModel.resolved(
-        OpenAIResponses.route.with({ provider: "yarp-neuro" }).model({ id: "test-model" }),
+      const opened = SessionRunnerModel.resolved(
+        OpenAIResponses.route.with({ provider: "opened" }).model({ id: "test-model" }),
         {
           capabilities: { tools: true, input: ["text", "image"], output: ["text"] },
           cost: [],
           limit: { context: 200_000, output: 32_000 },
         },
       )
-      const input = { session, agent: Agent.ID.make("build"), model: yarp, system: [], messages: [] }
-      const allowed = yield* requests.primary({ ...input, hostedImageGeneration: true })
-      const denied = yield* requests.primary({ ...input, hostedImageGeneration: false })
-      const auxiliary = yield* requests.title({ ...input, hostedImageGeneration: true })
-      expect((yield* compileRequest(allowed.request)).body.tools).toContainEqual({ type: "image_generation" })
-      expect((yield* compileRequest(denied.request)).body.tools).toBeUndefined()
-      expect((yield* compileRequest(auxiliary.request)).body.tools).toBeUndefined()
+      const input = { session, agent: Agent.ID.make("build"), model: opened, system: [], messages: [] }
+      const request = yield* requests.primary({ ...input, hostedImageGeneration: true })
+      expect((yield* compileRequest(request.request)).body.tools).toBeUndefined()
     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
   )
 

@@ -7,22 +7,32 @@ import { httpClient } from "@opencode/util/effect/app-node-platform"
 import { WebSocketConstructor } from "./websocket-constructor.js"
 
 // Bun's fetch ends a request after five quiet minutes, before provider routes' own header and chunk timeouts.
-// A virtual key must not be forwarded to an unrelated URL by fetch's automatic redirect handling.
-export const yarpNeuroHttpPolicy = (client: HttpClient.HttpClient) =>
+// OpenEd's bearer token must not be forwarded to another path by fetch's automatic redirect handling.
+export const openedHttpPolicy = (client: HttpClient.HttpClient) =>
   HttpClient.transform(client, (effect, request) =>
     effect.pipe(
       Effect.provideService(FetchHttpClient.RequestInit, {
         timeout: false,
-        ...(request.headers["x-bf-vk"] === undefined ? {} : { redirect: "manual" }),
+        ...(openedLLMRequest(request.url) ? { redirect: "manual" } : {}),
       } as BunFetchRequestInit),
     ),
   )
+
+function openedLLMRequest(value: string) {
+  const endpoint = new URL(process.env.OPENED_LLM_URL?.trim() || "https://llm.opened.site/v1")
+  const request = new URL(value)
+  const basePath = endpoint.pathname.replace(/\/$/, "")
+  return (
+    request.origin === endpoint.origin &&
+    (request.pathname === basePath || request.pathname.startsWith(`${basePath}/`))
+  )
+}
 
 const withoutBunTimeout = Layer.effect(
   HttpClient.HttpClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
-    return yarpNeuroHttpPolicy(client)
+    return openedHttpPolicy(client)
   }),
 )
 

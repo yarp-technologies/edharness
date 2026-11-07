@@ -1,5 +1,5 @@
 export const popularProviders = [
-  "yarp-neuro",
+  "opened",
   "opencode-go",
   "opencode",
   "anthropic",

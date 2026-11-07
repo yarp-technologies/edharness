@@ -170,7 +170,7 @@ export const dict = {
   "dialog.model.favorite": "Favorite",
   "dialog.model.unfavorite": "Unfavorite",
 
-  "dialog.model.unpaid.freeModels.title": "Free models provided by YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Free models provided by OpenEd",
   "dialog.model.unpaid.addMore.title": "Add more models from popular providers",
   "dialog.model.unpaid.viewMoreProviders": "See 70+ more providers",
 
@@ -270,6 +270,10 @@ export const dict = {
     "Check that your browser shows the same code before you authorize.",
   "provider.connect.oauth.auto.description":
     "Your browser opens so you can sign in to {{provider}}. Come back here when you are done.",
+  "provider.connect.opened.authorizationNote":
+    "Your Loom key does not expire automatically. Revoke it in Profile → API keys. Disconnecting here only removes the key saved on this device.",
+  "provider.connect.opened.authorizationExpired": "Loom authorization expired. Start a new connection attempt.",
+  "provider.connect.opened.browserFailed": "Could not open the browser. Try again in a desktop session.",
   "provider.connect.oauth.code.description":
     "Your browser opens so you can sign in to {{provider}}. Paste the authorization code it gives you below.",
   "provider.connect.oauth.openBrowser": "Open browser",

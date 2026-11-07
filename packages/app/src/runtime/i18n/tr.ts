@@ -166,7 +166,7 @@ export const dict = {
   "dialog.model.manage": "Modelleri yönet",
   "dialog.model.manage.description": "Model seçicide hangi modellerin görüneceğini özelleştirin.",
 
-  "dialog.model.unpaid.freeModels.title": "YarpNeuro tarafından sunulan ücretsiz modeller",
+  "dialog.model.unpaid.freeModels.title": "OpenEd tarafından sunulan ücretsiz modeller",
   "dialog.model.unpaid.addMore.title": "Popüler sağlayıcılardan daha fazla model ekleyin",
   "dialog.model.unpaid.viewMoreProviders": "70'ten fazla sağlayıcı daha görüntüle",
 

@@ -82,36 +82,62 @@ function withConfigEnv<A, E, R>(env: Record<string, string>, effect: () => Effec
 }
 
 describe("ModelResolver", () => {
-  it.effect("uses the YarpNeuro virtual-key header for Responses requests", () =>
+  it.effect("rejects OpenEd models when the saved scope does not include llm:use", () =>
+    Effect.gen(function* () {
+      const failure = yield* ModelResolver.fromCatalogModel(
+        model("@opencode/ai/providers/openai/responses", {
+          providerID: Provider.ID.make("opened"),
+          settings: { baseURL: "https://llm.opened.site/v1" },
+        }),
+        Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("opened-browser"),
+          refresh: "",
+          access: "test-access-token",
+          expires: 0,
+          metadata: { scope: "roadmaps:read" },
+        }),
+      ).pipe(Effect.flip)
+
+      expect(failure).toMatchObject({ detail: expect.stringContaining("llm:use") })
+    }),
+  )
+
+  it.effect("uses OpenEd OAuth credentials as Bearer tokens for Responses requests", () =>
     Effect.gen(function* () {
       const resolved = yield* ModelResolver.fromCatalogModel(
         model("@opencode/ai/providers/openai/responses", {
-          providerID: Provider.ID.make("yarp-neuro"),
-          settings: { baseURL: "https://neuro.tfcp.ru/v1" },
+          providerID: Provider.ID.make("opened"),
+          settings: { baseURL: "https://llm.opened.site/v1" },
         }),
-        Credential.Key.make({ type: "key", key: "secret" }),
+        Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("opened-browser"),
+          refresh: "",
+          access: "secret",
+          expires: 0,
+          metadata: { scope: "llm:use roadmaps:read" },
+        }),
       )
       const headers = yield* resolved.route.auth.apply({
         request: ai.request({ model: resolved, prompt: "Hello" }),
         method: "POST",
-        url: "https://neuro.tfcp.ru/v1/responses",
+        url: "https://llm.opened.site/v1/responses",
         body: "{}",
         headers: Headers.empty,
       })
 
-      expect(headers["x-bf-vk"]).toBe("secret")
-      expect(headers.authorization).toBeUndefined()
-      expect(resolved.route.endpoint.baseURL).toBe("https://neuro.tfcp.ru/v1")
+      expect(headers.authorization).toBe("Bearer secret")
+      expect(resolved.route.endpoint.baseURL).toBe("https://llm.opened.site/v1")
 
-      for (const url of ["https://attacker.example/v1/responses", "https://neuro.tfcp.ru/v10/responses"]) {
+      for (const url of ["https://attacker.example/v1/responses", "https://llm.opened.site/v10/responses"]) {
         const foreign = yield* resolved.route.auth.apply({
           request: ai.request({ model: resolved, prompt: "Hello" }),
           method: "POST",
           url,
           body: "{}",
-          headers: Headers.fromInput({ authorization: "Bearer stale", "x-bf-vk": "stale" }),
+          headers: Headers.empty,
         })
-        expect(foreign["x-bf-vk"]).toBeUndefined()
         expect(foreign.authorization).toBeUndefined()
       }
     }),

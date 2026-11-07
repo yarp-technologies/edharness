@@ -666,13 +666,16 @@ function OAuthAuto(props: {
   const toast = useToast()
   const clipboard = useClipboard()
   const newDesigns = useNewDesigns()
+  const hideAuthorizationURL = props.integration.id === "opened"
   let timer: ReturnType<typeof setTimeout> | undefined
   let settled = false
 
   const open = () => {
     openUrl(props.attempt.url).catch(() =>
       toast.show({
-        message: "Could not open the browser. Copy the URL and continue manually.",
+        message: hideAuthorizationURL
+          ? "Could not open the browser. Start authorization again in a desktop session."
+          : "Could not open the browser. Copy the URL and continue manually.",
         variant: "error",
       }),
     )
@@ -690,7 +693,9 @@ function OAuthAuto(props: {
     mode: "modal",
     commands: [
       { bind: newDesigns() ? "return" : "o", title: "Open authorization URL", group: "Dialog", run: open },
-      { bind: "c", title: "Copy authorization details", group: "Dialog", run: copy },
+      ...(!hideAuthorizationURL
+        ? [{ bind: "c", title: "Copy authorization details", group: "Dialog", run: copy }]
+        : []),
     ],
   }))
 
@@ -712,7 +717,15 @@ function OAuthAuto(props: {
           void connected(props.integration, props.location, data, dialog, toast, props.onConnected)
           return
         }
-        toast.show({ variant: "error", message: status.status === "failed" ? status.message : "Authorization expired" })
+        toast.show({
+          variant: "error",
+          message:
+            status.status === "failed"
+              ? status.message
+              : props.integration.id === "opened"
+                ? "OpenEd authorization expired. Start a new connection attempt."
+                : "Authorization expired",
+        })
         dialog.clear()
       })
       .catch((cause) => {
@@ -722,7 +735,10 @@ function OAuthAuto(props: {
       })
   }
 
-  onMount(poll)
+  onMount(() => {
+    poll()
+    if (hideAuthorizationURL) open()
+  })
   onCleanup(() => {
     if (timer) clearTimeout(timer)
     if (settled) return
@@ -736,10 +752,10 @@ function OAuthAuto(props: {
   return (
     <OAuthView
       title={props.title}
-      url={props.attempt.url}
+      url={hideAuthorizationURL ? undefined : props.attempt.url}
       instructions={props.attempt.instructions}
       message="Waiting for authorization…"
-      onCopy={copy}
+      onCopy={hideAuthorizationURL ? undefined : copy}
       onOpen={open}
     />
   )
@@ -843,16 +859,8 @@ function OAuthView(props: {
       }
     >
       <box gap={1}>
-        <Show when={props.url}>
-          {(url) => (
-            <box gap={1}>
-              <Link href={url()} fg={theme.markdown.link} />
-              <Show when={props.instructions}>
-                {(instructions) => <text fg={theme.text.muted}>{instructions()}</text>}
-              </Show>
-            </box>
-          )}
-        </Show>
+        <Show when={props.url}>{(url) => <Link href={url()} fg={theme.markdown.link} />}</Show>
+        <Show when={props.instructions}>{(instructions) => <text fg={theme.text.muted}>{instructions()}</text>}</Show>
         <text fg={theme.text.muted}>{props.message}</text>
       </box>
     </DialogLayout>

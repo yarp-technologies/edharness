@@ -1,12 +1,13 @@
-# Opened API reference
+# OpenEd API reference
 
-The default API root is `https://demo.opened.site/api`. All paths below are relative to `/api`; use the
-`opened_api` function from `SKILL.md` for authenticated operations. An explicitly configured
-`OPENED_BASE_URL` is a service origin without `/api` and replaces the default origin.
+The default API root is `https://opened.site/api`. All paths below are relative to `/api`; use the
+EdHarness `opened_api` tool from `SKILL.md` for authenticated operations. The tool uses the active
+OpenEd OAuth credential stored by EdHarness. `OPENED_URL` is a service origin without `/api` and
+replaces the default origin.
 
-This reference compares the API-key-enabled source at `e4897850a0bb576e2568bade67f3e8398485253c`
+This reference compares the API-authorized source at `e4897850a0bb576e2568bade67f3e8398485253c`
 with the service `main` at `3e215eda0d9a5a6b710548ef6cc93cdffc20ab8a`. It is not proof of what is
-currently deployed. Try the deployment's `/api/schema/openapi.json` without credentials; if it is
+currently deployed. Try the deployment's `/api/schema/openapi.json` through `opened_api`; if it is
 unavailable, use this reference and tell the user the deployed contract could not be checked. When
 the schema is available, follow its methods and schemas within the skill's permitted scope.
 
@@ -27,35 +28,35 @@ the schema is available, follow its methods and schemas within the skill's permi
 
 ## Access and request conventions
 
-The skill uses an API key acting as its owner; resource ownership and the owner's current role
-still apply. The API-key branch maps `GET` and `HEAD` to `:read` and other methods to `:write`.
-Those permissions are independent. Permission prefixes for the mapped groups are `identity`,
+The active EdHarness bearer token acts as its owner; resource ownership and the owner's current role
+still apply. The API maps `GET` and `HEAD` to `:read` and other methods to `:write`. Those
+permissions are independent. Permission prefixes for the mapped groups are `identity`,
 `profile`, `roadmaps`, `materials`, `generations`, `roadmap_mentor`, `mentor`, `examinator`, and
 `notifications`. For example, a `POST` that reads report statuses still requires
 `examinator:write`. API-key management and administrative methods are outside this skill.
 
-`[newer]` below means the operation appears in the `main` snapshot but not in the older API-key
+`[newer]` below means the operation appears in the `main` snapshot but not in the older API authorization
 branch snapshot; check the deployed schema before assuming it exists. `[older]` means the reverse.
-`[conditional access]` marks product route families that the older API-key middleware does not
-map: it will reject them with `403` even when the service offers them for browser sessions. Use
-these methods with an API key only if the deployed service supports the required grants. Do not
+`[conditional access]` marks product route families that the older API authorization middleware
+does not map: it will reject them with `403` even when the service offers them for browser sessions.
+Use these methods only if the deployed service supports the required grants. Do not
 attempt to bypass a `403`. Session login, refresh, logout, and registration use browser credentials,
-not this skill's API-key workflow.
+not this skill's API access.
 
 IDs in the paths below are UUIDs unless otherwise stated. Send JSON with
 `Content-Type: application/json` and multipart forms with repeated `files` parts as indicated.
 Do not invent IDs, revisions, inputs, or user intent: read the resource or ask the user. Perform
 writes and deletions only when requested. For revision conflicts or uncertain outcomes, reread the
-resource or task before retrying. On `401`, report an invalid/revoked key or inactive account; on
+resource or task before retrying. On `401`, report an invalid/revoked token or inactive account; on
 `403`, report the missing grant or role. Never include credentials in URLs, command arguments,
 traces, output, or logs.
 
 For operations marked **Idempotency**, send `Idempotency-Key` as a client-generated UUID. Use a new
 UUID for a new confirmed intent and reuse the same UUID only for a retry of the identical request.
 Roadmap Mentor accepts a nonempty operation key up to 200 characters; UUIDs also satisfy it. On
-`202`, the operation was accepted, not necessarily completed. For `text/event-stream` use
-`--no-buffer`, process events until completion or an interruption, then reread the authoritative
-snapshot; do not invent an outcome.
+`202`, the operation was accepted, not necessarily completed. `opened_api` buffers responses and
+times out after two minutes; prefer polling the authoritative status endpoint for long-running work.
+If an event-stream request completes, process its events and reread the authoritative snapshot.
 
 ## Account and service status
 
@@ -69,9 +70,9 @@ snapshot; do not invent an outcome.
 | `GET /ready` | Check backend readiness and dependency status. |
 | `GET /meta/timeouts` | Read the client-facing default request timeout in milliseconds. |
 
-The three service-status methods are public in the source snapshots; use an unauthenticated request
-and do not send the key unnecessarily. A deployment or its gateway may still restrict them. The
-OpenAPI document is at `GET /schema/openapi.json` when exposed.
+The three service-status methods are public in the source snapshots. The `opened_api` tool attaches
+the active bearer token to requests; a deployment or its gateway may still restrict these methods.
+The OpenAPI document is at `GET /schema/openapi.json` when exposed.
 
 ## Roadmaps
 
@@ -261,8 +262,8 @@ Permissions: `notifications:read` / `notifications:write`.
 ## Additional product APIs
 
 All methods in this section are `[newer]` and `[conditional access]`: they appear in the `main`
-snapshot, but the older API-key middleware does not map their resource roots. A deployment must
-explicitly support the relevant API-key grants for them; otherwise report the `403` to the user.
+snapshot, but the older authorization middleware does not map their resource roots. A deployment
+must explicitly support the relevant grants for them; otherwise report the `403` to the user.
 
 ### Material workspaces
 
@@ -316,11 +317,24 @@ permissions. Do not set `edit_approved` or report approval without the required 
 
 ## Examples
 
-```sh
-opened_api '/auth/me'
-opened_api '/roadmaps'
-opened_api '/materials'
-opened_api "/materials/$material_id/markdown"
-opened_api "/roadmaps/$roadmap_id/topics/$topic_id/progress" \
-  --request PUT --header 'Content-Type: application/json' --data-binary '{"state":"done"}'
+Call `opened_api` with one input at a time. For example:
+
+```json
+{ "method": "GET", "path": "/auth/me" }
+```
+
+```json
+{ "method": "GET", "path": "/roadmaps" }
+```
+
+```json
+{ "method": "GET", "path": "/materials/<material_id>/markdown" }
+```
+
+```json
+{
+  "method": "PUT",
+  "path": "/roadmaps/<roadmap_id>/topics/<topic_id>/progress",
+  "body": { "state": "done" }
+}
 ```

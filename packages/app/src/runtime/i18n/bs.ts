@@ -154,7 +154,7 @@ export const dict = {
   "dialog.model.manage": "Upravljaj modelima",
   "dialog.model.manage.description": "Prilagodi koji se modeli prikazuju u izborniku modela.",
 
-  "dialog.model.unpaid.freeModels.title": "Besplatni modeli koje obezbjeđuje YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Besplatni modeli koje obezbjeđuje OpenEd",
   "dialog.model.unpaid.addMore.title": "Dodaj još modela od popularnih provajdera",
   "dialog.model.unpaid.viewMoreProviders": "Pogledaj još više od 70 provajdera",
 

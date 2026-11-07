@@ -15,7 +15,7 @@ import { ModelTooltip } from "./tooltip"
 
 type ModelState = ModelSelection
 
-const featuredProviders = ["yarp-neuro", "opencode-go", "opencode", "openai", "anthropic", "google", "github-copilot"]
+const featuredProviders = ["opened", "opencode-go", "opencode", "openai", "anthropic", "google", "github-copilot"]
 
 const displayModelName = (name: string) => name.replace(/\s+(?:\(free\)|free)$/i, "")
 

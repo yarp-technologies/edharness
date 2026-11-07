@@ -141,7 +141,7 @@ export const dict = {
   "dialog.model.empty": "ምንም የሞዴል ውጤቶች የሉም",
   "dialog.model.manage": "ሞዴሎችን አስተዳድር",
   "dialog.model.manage.description": "በሞዴል መራጭ ውስጥ የትኞቹ ሞዴሎች እንደሚታዩ አብጅ።",
-  "dialog.model.unpaid.freeModels.title": "ነጻ ሞዴሎች በYarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "ነጻ ሞዴሎች በOpenEd",
   "dialog.model.unpaid.addMore.title": "ተጨማሪ ሞዴሎችን ከታዋቂ አቅራቢዎች ያክሉ",
   "dialog.model.unpaid.viewMoreProviders": "ከ70+ በላይ አቅራቢዎችን ይመልከቱ",
   "dialog.provider.viewAll": "ተጨማሪ አቅራቢዎችን አሳይ",

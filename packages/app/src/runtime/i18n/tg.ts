@@ -142,7 +142,7 @@ export const dict = {
   "dialog.model.empty": "Натоиҷи модел нест",
   "dialog.model.manage": "Моделҳоро идора кунед",
   "dialog.model.manage.description": "Муайян кунед, ки кадом моделҳо дар интихоби модел пайдо мешаванд.",
-  "dialog.model.unpaid.freeModels.title": "Моделҳои ройгон аз ҷониби YarpNeuro пешниҳодшуда",
+  "dialog.model.unpaid.freeModels.title": "Моделҳои ройгон аз ҷониби OpenEd пешниҳодшуда",
   "dialog.model.unpaid.addMore.title": "Моделҳои бештар аз провайдерҳои маъмул илова кунед",
   "dialog.model.unpaid.viewMoreProviders": "Ба 70+ провайдерҳои дигар нигаред",
   "dialog.provider.viewAll": "Провайдерҳои бештарро нишон диҳед",

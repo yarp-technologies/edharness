@@ -141,7 +141,7 @@ export const dict = {
   "dialog.model.empty": "Eingi modellúrslit",
   "dialog.model.manage": "Umsita modellir",
   "dialog.model.manage.description": "Tillaga hvørji modell síggjast í modellveljaranum.",
-  "dialog.model.unpaid.freeModels.title": "Ókeypis modellir veitt av YarpNeuro",
+  "dialog.model.unpaid.freeModels.title": "Ókeypis modellir veitt av OpenEd",
   "dialog.model.unpaid.addMore.title": "Legg fleiri modellir til frá vælumtóktum veitarum",
   "dialog.model.unpaid.viewMoreProviders": "Sí 70+ fleiri veitarar",
   "dialog.provider.viewAll": "Vís fleiri veitarar",
