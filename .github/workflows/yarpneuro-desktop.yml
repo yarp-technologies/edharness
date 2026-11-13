@@ -1,0 +1,157 @@
+name: EdHarness Desktop
+
+on:
+  push:
+    tags:
+      - v*-yarp.*
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub release tag to create
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Install Linux packaging tools
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends rpm
+
+      - name: Prepare release version
+        shell: bash
+        run: |
+          release_tag="${{ inputs.tag || github.ref_name }}"
+          echo "OPENCODE_VERSION=${release_tag#v}" >> "$GITHUB_ENV"
+
+      - name: Build bundled CLI
+        working-directory: packages/cli
+        run: bun run build --skip-install
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+          OPENCODE_TARGET: linux-x64-baseline
+
+      - name: Build desktop
+        working-directory: packages/desktop
+        run: bun run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+          OPENCODE_UPDATE_OWNER: yarp-technologies
+          OPENCODE_UPDATE_REPOSITORY: edharness
+          OPENCODE_UPDATE_CHANNEL: yarp
+          OPENCODE_ALLOW_PRERELEASE: "true"
+
+      - name: Package desktop
+        working-directory: packages/desktop
+        run: bun run electron-builder --linux --config electron-builder.config.ts --publish never
+        env:
+          OPENCODE_CHANNEL: prod
+          OPENCODE_UPDATE_OWNER: yarp-technologies
+          OPENCODE_UPDATE_REPOSITORY: edharness
+          OPENCODE_UPDATE_CHANNEL: yarp
+          OPENCODE_ALLOW_PRERELEASE: "true"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(packages/desktop/dist/*.AppImage packages/desktop/dist/*.deb packages/desktop/dist/*.rpm)
+          if (( ${#files[@]} != 3 )); then
+            echo "Expected one AppImage, one deb, and one rpm; found ${#files[@]} files"
+            printf '%s\n' packages/desktop/dist/*
+            exit 1
+          fi
+          metadata=packages/desktop/dist/yarp-linux.yml
+          if [[ ! -f "$metadata" ]]; then
+            echo "Expected yarp-linux.yml update metadata"
+            printf '%s\n' packages/desktop/dist/*
+            exit 1
+          fi
+          checksums=packages/desktop/dist/SHA256SUMS
+          sha256sum "${files[@]}" > "$checksums"
+          release_tag="${{ inputs.tag || github.ref_name }}"
+          gh release create "$release_tag" "${files[@]}" "$metadata" "$checksums" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "EdHarness Desktop $release_tag" \
+            --notes "Linux x64 desktop build from $GITHUB_SHA with YarpNeuro as the only built-in provider."
+
+  windows-x64:
+    needs: linux-x64
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Prepare release version
+        shell: bash
+        run: |
+          release_tag="${{ inputs.tag || github.ref_name }}"
+          echo "OPENCODE_VERSION=${release_tag#v}" >> "$GITHUB_ENV"
+
+      - name: Build bundled CLI
+        working-directory: packages/cli
+        run: bun run build --skip-install
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+          OPENCODE_TARGET: windows-x64-baseline
+
+      - name: Build desktop
+        working-directory: packages/desktop
+        run: bun run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+          OPENCODE_UPDATE_OWNER: yarp-technologies
+          OPENCODE_UPDATE_REPOSITORY: edharness
+          OPENCODE_UPDATE_CHANNEL: yarp
+          OPENCODE_ALLOW_PRERELEASE: "true"
+
+      - name: Package desktop
+        working-directory: packages/desktop
+        run: bun run electron-builder --win --config electron-builder.config.ts --publish never
+        env:
+          OPENCODE_CHANNEL: prod
+          OPENCODE_UPDATE_OWNER: yarp-technologies
+          OPENCODE_UPDATE_REPOSITORY: edharness
+          OPENCODE_UPDATE_CHANNEL: yarp
+          OPENCODE_ALLOW_PRERELEASE: "true"
+
+      - name: Publish Windows release asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = @(Get-ChildItem -LiteralPath packages/desktop/dist -Filter *.exe -File)
+          if ($files.Count -ne 1) {
+            Write-Output "Expected one Windows installer; found $($files.Count)"
+            Get-ChildItem -LiteralPath packages/desktop/dist
+            exit 1
+          }
+          $metadata = @(Get-ChildItem -LiteralPath packages/desktop/dist -Filter yarp.yml -File)
+          if ($metadata.Count -ne 1) {
+            Write-Output "Expected yarp.yml update metadata; found $($metadata.Count)"
+            Get-ChildItem -LiteralPath packages/desktop/dist
+            exit 1
+          }
+          $checksum = Join-Path $files[0].DirectoryName SHA256SUMS-windows-x64
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $files[0].FullName).Hash.ToLower()
+          "$hash  $($files[0].Name)" | Set-Content -NoNewline -Path $checksum
+          $releaseTag = "${{ inputs.tag || github.ref_name }}"
+          gh release upload $releaseTag $files[0].FullName $metadata[0].FullName $checksum --repo $env:GITHUB_REPOSITORY --clobber

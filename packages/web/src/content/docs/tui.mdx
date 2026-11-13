@@ -49,7 +49,7 @@ Compare our setup with @docs/README.md
 
 ---
 
-## Bash commands
+## Shell commands
 
 Start a message with `!` to run a shell command.
 
@@ -218,16 +218,6 @@ List and switch between sessions. _Aliases_: `/resume`, `/continue`
 
 ---
 
-### share
-
-Share current session. [Learn more](/docs/share).
-
-```bash frame="none"
-/share
-```
-
----
-
 ### themes
 
 List available themes.
@@ -242,15 +232,11 @@ List available themes.
 
 ### thinking
 
-Toggle the visibility of thinking/reasoning blocks in the conversation. When enabled, you can see the model's reasoning process for models that support extended thinking.
+Model reasoning is hidden in the standard terminal chat. While a reasoning block is active, the chat shows `Думаю…` instead.
 
 :::note
-This command only controls whether thinking blocks are **displayed** - it does not enable or disable the model's reasoning capabilities. To toggle actual reasoning capabilities, use `ctrl+t` to cycle through model variants.
+This affects the display only; it does not disable the model's reasoning capabilities. To change reasoning capabilities, use `ctrl+t` to cycle through model variants.
 :::
-
-```bash frame="none"
-/thinking
-```
 
 ---
 
@@ -273,12 +259,12 @@ be a Git repository**.
 
 ---
 
-### unshare
+### update
 
-Unshare current session. [Learn more](/docs/share#un-sharing).
+Check for a new version of OpenCode and install it. If a newer OpenCode 1 release is available, the dialog installs it. If OpenCode 1 is up to date, it offers to upgrade you to OpenCode 2 instead. OpenCode never installs updates on its own.
 
 ```bash frame="none"
-/unshare
+/update
 ```
 
 ---

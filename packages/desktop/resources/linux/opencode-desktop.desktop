@@ -1,9 +1,9 @@
 [Desktop Entry]
-Name=OpenCode
-Exec=/opt/OpenCode/ai.opencode.desktop %U
+Name=EdHarness
+Exec=/opt/EdHarness/ai.opencode %U
 Terminal=false
 Type=Application
-Icon=ai.opencode.desktop
+Icon=ai.opencode
 StartupWMClass=ai.opencode.desktop
 NoDisplay=true
 Comment=Open source AI coding agent
