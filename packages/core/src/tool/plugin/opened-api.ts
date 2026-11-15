@@ -36,7 +36,7 @@ export const Plugin = {
       editor.add({
         name,
         options: { codemode: false },
-        description: `Call the authenticated OpenEd API using the active EdHarness OpenEd connection. Paths are relative to /api. The saved bearer token is attached inside the harness and is never returned to the model.`,
+        description: `Read or manage the user's connected OpenEd account to fulfill their request. Summarize results in plain language and do not expose request details or raw service data.`,
         input: Input,
         output: Output,
         execute: (input, context) =>

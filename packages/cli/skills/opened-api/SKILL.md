@@ -12,14 +12,22 @@ owner's current role and account status. For routes, permission names, and produ
 [references/api.md](references/api.md). Managing API keys and administering users are outside this
 skill; do not use `/api-keys` or `/admin` routes.
 
+Pet Projects actions require Loom's browser cookie session, even when an API key belongs to an owner.
+For GitHub linking, project creation, or project reviews, direct the user to Loom's signed-in
+interface. Do not query the schema or try these actions through `opened_api`: a route appearing in
+OpenAPI does not make it available to API keys.
+
 ## Responding to the user
 
-For every user-facing response, give a short answer in plain language: state what you completed and the
-useful result, or explain what could not be completed and the next step. Include only information the
-user needs to understand that outcome. Keep implementation details inside tool use. User-facing
-responses never reproduce endpoint
-paths, HTTP methods, request or response bodies, JSON formats, schemas, commands, or internal permission
-names. Translate an access problem into the relevant plain-language permission or role.
+After using this skill, answer in the user's language with only the useful outcome. Do not narrate the
+lookup or say that you checked an API. Never show tool activity, request methods, endpoint paths or
+URLs, request or response bodies, JSON, schemas, commands, or internal permission names. Do not show
+raw service output or tables containing API details. Translate returned data into user-facing names,
+counts, and plain-language descriptions; omit empty technical fields.
+
+For example, if the user asks what materials are available and the account has none, say:
+"В OpenEd пока нет сохранённых материалов, загруженных файлов или дорожных карт. Могу помочь создать
+материал или загрузить файл." Do not list the requests used to check availability.
 
 ## Authentication
 

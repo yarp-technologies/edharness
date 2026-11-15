@@ -112,6 +112,7 @@ type ToolProps = {
 
 type ToolName =
   | "invalid"
+  | "opened_api"
   | "shell"
   | "write"
   | "edit"
@@ -157,6 +158,7 @@ function text(v: unknown): string {
 }
 
 export function toolOutputText(name: string, content: ReadonlyArray<{ type: string; text?: string }> | undefined) {
+  if (canonicalToolName(name) === "opened_api") return ""
   if (!content) return ""
   // V2 shell content appends model-only status after the user-visible command output.
   if (canonicalToolName(name) === "shell") return content.find((item) => item.type === "text")?.text ?? ""
@@ -485,6 +487,22 @@ function runInvalid(p: ToolProps): ToolInline {
     mode: "block",
     body: p.frame.status === "completed" ? p.frame.output : undefined,
   }
+}
+
+function runOpenedAPI(p: ToolProps): ToolInline {
+  const failed = p.frame.status === "error"
+  return {
+    icon: failed ? "✗" : "◈",
+    title: failed ? "OpenEd action failed" : "OpenEd account",
+  }
+}
+
+function scrollOpenedAPIStart(_: ToolProps): string {
+  return "◈ Checking your OpenEd account"
+}
+
+function scrollOpenedAPIFinal(p: ToolProps): string {
+  return p.frame.status === "error" ? "Could not complete the OpenEd action." : ""
 }
 
 function runBatch(p: ToolProps): ToolInline {
@@ -920,6 +938,18 @@ const TOOL_RULES = {
     run: runInvalid,
     scroll: {
       start: () => "",
+    },
+  },
+  opened_api: {
+    view: {
+      output: false,
+      final: false,
+    },
+    run: runOpenedAPI,
+    scroll: {
+      start: scrollOpenedAPIStart,
+      progress: () => "",
+      final: scrollOpenedAPIFinal,
     },
   },
   shell: {

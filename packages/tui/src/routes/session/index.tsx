@@ -2702,8 +2702,9 @@ type ToolProps = {
 }
 function GenericTool(props: ToolProps) {
   const theme = useTheme()
-  const output = createMemo(() => stripAnsi(props.output?.trim() ?? ""))
-  const input = createMemo(() => Object.entries(props.input))
+  const hideDetails = props.tool === "opened_api"
+  const output = createMemo(() => (hideDetails ? "" : stripAnsi(props.output?.trim() ?? "")))
+  const input = createMemo(() => (hideDetails ? [] : Object.entries(props.input)))
   const [expanded, setExpanded] = createSignal(false)
   const expandable = createMemo(() => input().length > 0 || output().length > 0)
   const loading = createMemo(() => props.part.state.status === "streaming" || props.part.state.status === "running")
@@ -2713,12 +2714,15 @@ function GenericTool(props: ToolProps) {
       <InlineTool
         icon={props.part.state.status === "error" ? "✗" : "✓"}
         complete={props.part.state.status === "completed"}
-        pending={props.tool}
+        pending={hideDetails ? "OpenEd account" : props.tool}
         spinner={loading()}
         part={props.part}
         onClick={expandable() ? () => setExpanded((value) => !value) : undefined}
+        onErrorClick={hideDetails ? () => undefined : undefined}
       >
-        {genericToolSummary(props.tool, props.input)}
+        {hideDetails && props.part.state.status === "error"
+          ? "Could not complete the OpenEd action."
+          : genericToolSummary(props.tool, props.input)}
       </InlineTool>
       <Show when={expanded()}>
         <box paddingLeft={3 + INLINE_TOOL_ICON_WIDTH}>
@@ -2753,6 +2757,7 @@ function GenericTool(props: ToolProps) {
 }
 
 export function genericToolSummary(tool: string, input: Record<string, unknown>) {
+  if (tool === "opened_api") return "OpenEd account"
   const args = primitiveInputSummary(input).replace(/\s+/g, " ")
   return `${tool}${args ? ` ${args}` : ""}`
 }
