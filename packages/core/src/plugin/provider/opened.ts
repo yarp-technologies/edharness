@@ -8,6 +8,7 @@ import { Credential } from "../../credential.js"
 import { Integration } from "../../integration.js"
 import { IntegrationConnection } from "../../integration/connection.js"
 import { Model } from "../../model.js"
+import { fromServerID } from "../../opened-model.js"
 import { Provider } from "../../provider.js"
 import { configuredOpenedURL, openedOrigin } from "../../opened.js"
 import { OpenedApiTool } from "../../tool/plugin/opened-api.js"
@@ -124,7 +125,9 @@ export const OpenedPlugin = define({
     const llmBaseURL = openedLLMBaseURL()
     const loading = Semaphore.makeUnsafe(1)
     type ActiveConnection = Effect.Success<ReturnType<typeof ctx.integration.connection.active>>
-    const loaded: { models: readonly string[]; connection?: ActiveConnection } = { models: [] }
+    const loaded: { models: readonly NonNullable<ReturnType<typeof fromServerID>>[]; connection?: ActiveConnection } = {
+      models: [],
+    }
 
     yield* ctx.integration.transform((integrations) => {
       integrations.update(integrationID, (integration) => (integration.name = "OpenEd"))
@@ -139,13 +142,18 @@ export const OpenedPlugin = define({
         provider.settings = { baseURL: llmBaseURL }
       })
       for (const item of providers.get(providerID)?.models.values() ?? []) {
-        if (!loaded.models.includes(item.id)) providers.models.remove(providerID, item.id)
+        if (!loaded.models.some((model) => model.id === item.id)) providers.models.remove(providerID, item.id)
       }
-      for (const id of loaded.models) {
-        providers.models.update(providerID, id, (model) => {
-          model.modelID = Model.ID.make(id)
-          model.name = id
-          model.capabilities = { tools: true, input: ["text", "image"], output: ["text"] }
+      for (const item of loaded.models) {
+        providers.models.update(providerID, Model.ID.make(item.id), (model) => {
+          model.modelID = Model.ID.make(item.routeModelID)
+          model.name = item.name
+          model.type = item.type
+          model.package = item.package
+          model.capabilities =
+            item.type === "image"
+              ? { tools: false, input: ["text", "image"], output: ["image"] }
+              : { tools: true, input: ["text", "image"], output: ["text"] }
           model.status = "active"
           model.enabled = true
         })
@@ -209,11 +217,15 @@ export const OpenedPlugin = define({
       if (response.status < 200 || response.status >= 300) return
 
       const next = yield* HttpClientResponse.schemaBodyJson(ModelsResponse)(response).pipe(
-        Effect.map((body) => [
-          ...new Set(
-            body.data.map((item) => item.id).filter((id) => modelIDPattern.test(id) && !reservedModelIDs.has(id)),
-          ),
-        ]),
+        Effect.map((body) => {
+          const discovered = new Map<string, NonNullable<ReturnType<typeof fromServerID>>>()
+          for (const { id } of body.data) {
+            if (!modelIDPattern.test(id) || reservedModelIDs.has(id)) continue
+            const model = fromServerID(id)
+            if (model) discovered.set(model.id, model)
+          }
+          return Array.from(discovered.values())
+        }),
         Effect.catch(() => Effect.logWarning("failed to load OpenEd models").pipe(Effect.as(undefined))),
       )
       if (!next) return

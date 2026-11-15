@@ -528,6 +528,53 @@ test("tool input deltas are accumulated without being published", async () => {
   })
 })
 
+it.effect("ignores a repeated tool input start for the same unfinished call", () =>
+  Effect.gen(function* () {
+    const { published, publisher } = capture()
+    yield* Effect.forEach(
+      [
+        LLMEvent.toolInputStart({ id: "call_repeated", name: "read" }),
+        LLMEvent.toolInputStart({ id: "call_repeated", name: "read" }),
+        LLMEvent.toolInputDelta({ id: "call_repeated", name: "read", text: '{"path":"file.txt"}' }),
+        LLMEvent.toolInputEnd({ id: "call_repeated", name: "read" }),
+      ],
+      publisher.publish,
+      { discard: true },
+    )
+
+    expect(published.filter((event) => event.type === "session.tool.input.started.1")).toHaveLength(1)
+    expect(published.find((event) => event.type === "session.tool.input.ended.1")?.data).toMatchObject({
+      id: "call_repeated",
+      text: '{"path":"file.txt"}',
+    })
+  }),
+)
+
+it.effect("ignores replayed tool input fragments after the call input has ended", () =>
+  Effect.gen(function* () {
+    const { published, publisher } = capture()
+    yield* Effect.forEach(
+      [
+        LLMEvent.toolInputStart({ id: "call_replayed", name: "read" }),
+        LLMEvent.toolInputDelta({ id: "call_replayed", name: "read", text: '{"path":"first"}' }),
+        LLMEvent.toolInputEnd({ id: "call_replayed", name: "read" }),
+        LLMEvent.toolInputStart({ id: "call_replayed", name: "read" }),
+        LLMEvent.toolInputDelta({ id: "call_replayed", name: "read", text: '{"path":"replay"}' }),
+        LLMEvent.toolInputEnd({ id: "call_replayed", name: "read" }),
+        LLMEvent.toolCall({ id: "call_replayed", name: "read", input: { path: "first" } }),
+      ],
+      publisher.publish,
+      { discard: true },
+    )
+
+    expect(published.filter((event) => event.type === "session.tool.input.started.1")).toHaveLength(1)
+    expect(published.find((event) => event.type === "session.tool.called.1")?.data).toMatchObject({
+      id: "call_replayed",
+      input: { path: "first" },
+    })
+  }),
+)
+
 test("provider-executed tool metadata is flattened using the route key", async () => {
   const { published, publisher } = capture("openai")
   await Effect.runPromise(

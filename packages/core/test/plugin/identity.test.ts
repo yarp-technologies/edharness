@@ -24,6 +24,20 @@ test("formats the model identity part", () => {
   ).toBe(["# Your Model", "- Name: GPT-4o mini", "- Provider ID: openai", "- Model ID: gpt-4o-mini"].join("\n"))
 })
 
+test("formats OpenEd identity without exposing the gateway model identifier", () => {
+  const prompt = IdentityPlugin.identity({
+    name: "OpenEd Light",
+    ref: Model.Ref.make({ providerID: Provider.ID.make("opened"), id: Model.ID.make("light") }),
+  })
+
+  expect(prompt).toContain("You are OpenEd Light")
+  expect(prompt).toContain("- Provider: OpenEd")
+  expect(prompt).toContain("Never disclose upstream model or provider identifiers")
+  expect(prompt).not.toContain("Provider ID")
+  expect(prompt).not.toContain("Model ID")
+  expect(prompt).not.toContain("minimax")
+})
+
 const identity = (name: string, id: string) =>
   ["# Your Model", `- Name: ${name}`, "- Provider ID: test", `- Model ID: ${id}`].join("\n")
 

@@ -63,7 +63,13 @@ const remote = (): Remote => ({
   apiRequests: [],
   token: { access_token: "test-opened-access-secret", token_type: "Bearer", scope: "llm:use roadmaps:read" },
   exchangeStatus: 200,
-  modelIDs: ["configured-by-loom"],
+  modelIDs: [
+    "minimax/opened-light",
+    "minimax/opened-smart",
+    "minimax/opened-max",
+    "minimax/opened-image",
+    "minimax/MiniMax-M2.7",
+  ],
 })
 
 function openedServer(state: Remote) {
@@ -280,13 +286,37 @@ describe("OpenEd provider", () => {
           expect(state.modelRequests.length).toBeGreaterThan(0)
           expect(state.modelRequests[0]?.url).toBe(`${server.url.origin}/v1/models`)
           expect(state.modelRequests[0]?.headers.authorization).toBe(`Bearer ${state.token.access_token}`)
-          const discoveredModel = yield* Effect.gen(function* () {
-            return yield* models.get(providerID, Model.ID.make("configured-by-loom"))
-          }).pipe(
-            Effect.repeat({ until: (model) => model !== undefined, schedule: Schedule.spaced("10 millis") }),
+          const publicModels = yield* models.available().pipe(
+            Effect.repeat({
+              until: (available) => available.filter((model) => model.providerID === providerID).length === 3,
+              schedule: Schedule.spaced("10 millis"),
+            }),
             Effect.timeout("3 seconds"),
           )
-          expect(discoveredModel).toBeDefined()
+          expect(
+            publicModels
+              .filter((model) => model.providerID === providerID)
+              .map((model) => [model.id, model.name, model.modelID]),
+          ).toEqual([
+            ["light", "OpenEd Light", "opened-light"],
+            ["smart", "OpenEd Smart", "opened-smart"],
+            ["max", "OpenEd Max", "opened-max"],
+          ])
+          expect(
+            publicModels
+              .map((model) => `${model.id} ${model.name}`)
+              .join(" ")
+              .toLowerCase(),
+          ).not.toContain("minimax")
+          expect(
+            publicModels
+              .filter((model) => model.providerID === providerID)
+              .some((model) => model.modelID.toLowerCase().includes("minimax")),
+          ).toBe(false)
+          const imageModels = yield* models.available(["image"])
+          expect(imageModels.filter((model) => model.providerID === providerID).map((model) => model.id)).toEqual([
+            Model.ID.make("image"),
+          ])
 
           const toolService = yield* Tool.Service
           const toolSnapshot = yield* toolService.snapshot()

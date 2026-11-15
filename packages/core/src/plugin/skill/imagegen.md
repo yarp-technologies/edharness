@@ -1,8 +1,15 @@
 # Image generation
 
-Use the provider-hosted `image_generation` tool when the user asks for a new
-raster image or wants to edit an existing image. This tool is available for
-OpenAI Codex OAuth Responses models. This path does not require an API key.
+In EdHarness, always use the native `experimental_image_generate` tool when
+the user asks for a new raster image or wants to edit one. For OpenEd, it uses
+the active OpenEd authorization and configured OpenEd LLM service. Leave its
+`model` unset. Never search for Bifrost or other provider credentials, and
+never ask the user for an API key. If the native tool is unavailable for
+OpenEd, explain that image generation is not configured on the OpenEd service.
+
+Outside EdHarness, use the provider-hosted `image_generation` tool when it is
+available for an OpenAI Codex OAuth Responses model. This path does not require
+an API key.
 
 ## When to use it
 
@@ -53,15 +60,17 @@ text and no watermark unless the user asks for one.
    preview or a project asset.
 2. Inspect local edit targets with the available image/file inspection tool
    before editing them.
-3. Call `image_generation` with a concise, production-ready prompt.
+3. In EdHarness, call `experimental_image_generate` with a concise,
+   production-ready prompt. Outside EdHarness, call Codex's provider-hosted
+   `image_generation` tool when available.
 4. Check the returned image against the subject, style, composition, text, and
    invariants. Iterate with one targeted change when necessary.
 5. For a project asset, save or move the selected result into the workspace
    without overwriting an existing file unless replacement was requested.
 
-If `image_generation` is unavailable, say so clearly. Do not invent a fallback
-command or ask for an API key unless the user explicitly requests a separate
-API-based workflow.
+If the applicable native image tool is unavailable, say so clearly. Do not
+invent a fallback command or ask for an API key unless the user explicitly
+requests a separate API-based workflow.
 
 For transparent output, request a genuinely transparent background and retain
 the alpha channel. For multiple distinct assets, make one tool call per asset;

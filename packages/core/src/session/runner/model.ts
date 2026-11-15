@@ -7,6 +7,7 @@ import { Provider } from "@opencode/schema/provider"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Agent } from "../../agent.js"
 import { ModelResolver } from "../../model-resolver.js"
+import { publicModelID } from "../../opened-model.js"
 import { SessionSchema } from "../schema.js"
 
 export class ModelNotSelectedError extends Schema.TaggedError<ModelNotSelectedError>()(
@@ -23,6 +24,7 @@ export class ModelUnavailableError extends Schema.TaggedError<ModelUnavailableEr
   { providerID: Provider.ID, modelID: Model.ID },
 ) {
   override get message() {
+    if (this.providerID === "opened") return "OpenEd model unavailable. Choose an available OpenEd model."
     if (this.providerID === "azure-cognitive-services")
       return `Model unavailable: ${this.providerID}/${this.modelID}. This provider has been deprecated; use azure/${this.modelID} instead.`
     if (this.providerID === "google-vertex-anthropic")
@@ -78,22 +80,24 @@ const layer = Layer.effect(
         // Location plugins populate and filter the catalog asynchronously during layer startup.
         if (!session.model) {
           const agent = (yield* agents.select(session.agent)).info?.model
+          const agentID = agent?.providerID === "opened" ? publicModelID(agent.id) : agent?.id
           const preferred =
-            agent &&
-            (yield* available()).find((model) => model.providerID === agent.providerID && model.id === agent.id)
+            agent && (yield* available()).find((model) => model.providerID === agent.providerID && model.id === agentID)
           const resolved = preferred
             ? yield* resolver.resolveModel(preferred, agent.variant)
             : yield* resolver.resolve()
           if (resolved) return resolved
           return yield* new ModelNotSelectedError({ sessionID: session.id })
         }
+        const selectedID = session.model.providerID === "opened" ? publicModelID(session.model.id) : session.model.id
         const selected = (yield* available()).find(
-          (model) => model.providerID === session.model?.providerID && model.id === session.model.id,
+          (model) => model.providerID === session.model?.providerID && model.id === selectedID,
         )
         if (!selected)
           return yield* new ModelUnavailableError({
             providerID: session.model.providerID,
-            modelID: session.model.id,
+            modelID:
+              session.model.providerID === "opened" ? Model.ID.make(publicModelID(session.model.id)) : session.model.id,
           })
         return yield* resolver.resolveModel(selected, session.model.variant)
       }),

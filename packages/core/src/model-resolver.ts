@@ -6,17 +6,20 @@ import {
   DecisionModelCompatibility,
   DecisionModelSchema,
   HttpOptions,
+  type ImageRoute,
   ImageModel,
   ImageModelSchema,
   LanguageModel,
   ProviderConfigurationError,
 } from "@opencode/ai/effect"
 import { Auth, mergeHttpOptions } from "@opencode/ai/route"
+import type { Interface as RequestExecutorInterface } from "@opencode/ai/route"
 import { Context, Effect, Layer, Schema, Struct } from "effect"
-import { Headers } from "effect/http"
+import { Headers, HttpClientRequest } from "effect/http"
 import { AISDK } from "./aisdk.js"
 import { Credential } from "./credential.js"
 import { Integration } from "./integration.js"
+import { publicModelID } from "./opened-model.js"
 import { Capabilities, ID, Info, Model, Ref, VariantID } from "./model.js"
 import type { RuntimeInfo } from "./model.js"
 import { Npm } from "@opencode/util/npm"
@@ -228,16 +231,7 @@ const resolveCatalogModel = Effect.fn("ModelResolver.resolveCatalogModel")(funct
   credential?: Credential.Value,
   dependencies?: Dependencies,
 ) {
-  if (model.providerID === "opened") {
-    const scope = credential?.type === "oauth" ? credential.metadata?.scope : undefined
-    if (typeof scope !== "string" || !scope.trim().split(/\s+/).includes("llm:use"))
-      return yield* new ModelConfigurationError({
-        providerID: model.providerID,
-        modelID: model.id,
-        package: model.package ?? "unknown",
-        detail: "OpenEd authorization does not include llm:use. Reconnect to OpenEd with that permission.",
-      })
-  }
+  yield* requireOpenedLLMUse(model, credential)
   if (Provider.isAISDK(model.package)) {
     const resolved = prepareRuntimeModel(model)
     const loadAISDK = dependencies?.loadAISDK
@@ -317,6 +311,7 @@ const fromCatalogMedia = Effect.fn("ModelResolver.fromCatalogMedia")(function* <
   credential?: Credential.Value,
   dependencies?: Dependencies,
 ) {
+  yield* requireOpenedLLMUse(model, credential)
   const { resolved, module, settings } = yield* loadCatalogPackage(model, credential, dependencies)
   const runtime: unknown = yield* Effect.try({
     try: () => module.model(resolved.modelID ?? resolved.id, settings),
@@ -325,12 +320,17 @@ const fromCatalogMedia = Effect.fn("ModelResolver.fromCatalogMedia")(function* <
   // Catalog and config compatibility tell a decision route how its host takes media, as chat does above.
   const mediaInput = resolved.compatibility?.mediaInput
   const adapted =
-    runtime instanceof DecisionModel && mediaInput !== undefined
-      ? new DecisionModel({
+    runtime instanceof ImageModel && resolved.providerID === "opened"
+      ? new ImageModel({
           ...runtime,
-          compatibility: DecisionModelCompatibility.make({ ...runtime.compatibility, mediaInput }),
+          route: openedImageRoute(runtime.route, credential?.type === "oauth" ? credential.access : undefined),
         })
-      : runtime
+      : runtime instanceof DecisionModel && mediaInput !== undefined
+        ? new DecisionModel({
+            ...runtime,
+            compatibility: DecisionModelCompatibility.make({ ...runtime.compatibility, mediaInput }),
+          })
+        : runtime
   if (!is(adapted)) return yield* unsupported(resolved)
   return adapted
 })
@@ -402,16 +402,61 @@ function unresolvedProviderVariables(model: RuntimeInfo, baseURL: string) {
 }
 
 function openedAuth(token: string | undefined) {
+  return Auth.custom((input) => Effect.succeed(openedHeaders(token, input.url, input.headers)))
+}
+
+function openedHeaders(token: string | undefined, url: string, headers: Headers.Headers) {
+  const safe = Headers.remove(headers, "authorization")
+  if (!token || !URL.canParse(url)) return safe
   const endpoint = new URL(process.env.OPENED_LLM_URL ?? "https://llm.opened.site/v1")
   const basePath = endpoint.pathname.replace(/\/$/, "")
-  return Auth.custom((input) => {
-    const headers = Headers.remove(input.headers, "authorization")
-    if (!token || !URL.canParse(input.url)) return Effect.succeed(headers)
-    const url = new URL(input.url)
-    if (url.origin !== endpoint.origin || (url.pathname !== basePath && !url.pathname.startsWith(`${basePath}/`)))
-      return Effect.succeed(headers)
-    return Effect.succeed(Headers.set(headers, "authorization", `Bearer ${token}`))
-  })
+  const request = new URL(url)
+  if (
+    request.origin !== endpoint.origin ||
+    (request.pathname !== basePath && !request.pathname.startsWith(`${basePath}/`))
+  )
+    return safe
+  return Headers.set(safe, "authorization", `Bearer ${token}`)
+}
+
+function openedImageRoute(route: ImageRoute, token: string | undefined): ImageRoute {
+  const authorize =
+    (execute: RequestExecutorInterface["execute"]): RequestExecutorInterface["execute"] =>
+    (request, middleware) =>
+      execute(
+        request.pipe(
+          HttpClientRequest.removeHeader("authorization"),
+          HttpClientRequest.setHeaders(openedHeaders(token, request.url, request.headers)),
+        ),
+        middleware,
+      )
+  if (route.kind === "queued")
+    return {
+      ...route,
+      start: (request, execute) => route.start(request, authorize(execute)),
+      resume: (request, generation, execute) => route.resume(request, generation, authorize(execute)),
+    }
+  if (route.kind === "stream")
+    return {
+      ...route,
+      stream: (request, execute) => route.stream(request, authorize(execute)),
+      generate: (request, execute) => route.generate(request, authorize(execute)),
+    }
+  return { ...route, generate: (request, execute) => route.generate(request, authorize(execute)) }
+}
+
+const requireOpenedLLMUse = (model: RuntimeInfo, credential: Credential.Value | undefined) => {
+  if (model.providerID !== "opened") return Effect.void
+  const scope = credential?.type === "oauth" ? credential.metadata?.scope : undefined
+  if (typeof scope === "string" && scope.trim().split(/\s+/).includes("llm:use")) return Effect.void
+  return Effect.fail(
+    new ModelConfigurationError({
+      providerID: model.providerID,
+      modelID: model.id,
+      package: model.package ?? "unknown",
+      detail: "OpenEd authorization does not include llm:use. Reconnect to OpenEd with that permission.",
+    }),
+  )
 }
 
 const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credential: Credential.Value | undefined) => {
@@ -542,7 +587,10 @@ export const layer = Layer.effect(
     return Service.of({
       resolve: Effect.fn("ModelResolver.resolve")(function* (requested) {
         const selected = requested
-          ? yield* models.get(requested.providerID, requested.id)
+          ? yield* models.get(
+              requested.providerID,
+              requested.providerID === "opened" ? ID.make(publicModelID(requested.id)) : requested.id,
+            )
           : yield* models
               .default()
               .pipe(

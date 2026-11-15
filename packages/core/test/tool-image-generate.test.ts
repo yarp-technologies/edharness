@@ -473,6 +473,7 @@ describe("experimental_image_generate", () => {
   it.effect("lists image models through the models tool type filter", () =>
     Effect.gen(function* () {
       yield* imageModel("test", "painter")
+      yield* imageModel("opened", "image")
       const catalog = yield* Provider.Service
       yield* catalog.transform((editor) =>
         editor.models.update(Provider.ID.make("test"), Model.ID.make("chat"), () => {}),

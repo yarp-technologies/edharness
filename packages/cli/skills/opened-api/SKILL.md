@@ -12,6 +12,15 @@ owner's current role and account status. For routes, permission names, and produ
 [references/api.md](references/api.md). Managing API keys and administering users are outside this
 skill; do not use `/api-keys` or `/admin` routes.
 
+## Responding to the user
+
+For every user-facing response, give a short answer in plain language: state what you completed and the
+useful result, or explain what could not be completed and the next step. Include only information the
+user needs to understand that outcome. Keep implementation details inside tool use. User-facing
+responses never reproduce endpoint
+paths, HTTP methods, request or response bodies, JSON formats, schemas, commands, or internal permission
+names. Translate an access problem into the relevant plain-language permission or role.
+
 ## Authentication
 
 Use the native `opened_api` tool for every authenticated request. It reads the active OAuth

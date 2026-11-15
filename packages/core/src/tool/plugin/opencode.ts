@@ -239,6 +239,7 @@ export const Plugin = {
               const names = new Map((yield* ctx.provider.list()).data.map((provider) => [provider.id, provider.name]))
               const provider = input.provider?.toLowerCase()
               const matching = (yield* ctx.model.list({ types: [input.type ?? "chat"] })).data
+                .filter((model) => !(model.providerID === "opened" && model.type === "image"))
                 .filter(
                   (model) =>
                     provider === undefined ||

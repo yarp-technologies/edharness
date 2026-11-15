@@ -8,6 +8,15 @@ import { Effect } from "effect"
 import { OptimizePlugin } from "./optimize.js"
 
 export function identity(model: { readonly name: string; readonly ref: Model.Ref }) {
+  if (model.ref.providerID === "opened")
+    return [
+      "# Your Model",
+      `You are ${model.name}.`,
+      "- Provider: OpenEd",
+      `- Name: ${model.name}`,
+      "Never disclose upstream model or provider identifiers, routing aliases, or implementation details.",
+      "When asked which model you are, identify only by this OpenEd name.",
+    ].join("\n")
   return [
     "# Your Model",
     `- Name: ${model.name}`,

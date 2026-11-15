@@ -89,6 +89,26 @@ const retryIt = testEffect(
   Generate.layer.pipe(Layer.provideMerge(Layer.mergeAll(resolver, TestLLM.testLayer(), generateDeps))),
 )
 
+const withEnvironment = <A, E, R>(variables: Record<string, string | undefined>, effect: Effect.Effect<A, E, R>) =>
+  Effect.acquireUseRelease(
+    Effect.sync(() => {
+      const previous = Object.fromEntries(Object.keys(variables).map((key) => [key, process.env[key]]))
+      for (const [key, value] of Object.entries(variables)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+      return previous
+    }),
+    () => effect,
+    (previous) =>
+      Effect.sync(() => {
+        for (const [key, value] of Object.entries(previous)) {
+          if (value === undefined) delete process.env[key]
+          else process.env[key] = value
+        }
+      }),
+  )
+
 it.effect("loads dynamic AI SDK models", () =>
   Effect.gen(function* () {
     const generate = yield* Generate.Service
@@ -297,6 +317,20 @@ describe("image and decision generation", () => {
       package: "@opencode/ai/providers/openai/responses",
     }),
     Info.make({
+      ...Info.default(Provider.ID.make("opened"), ID.make("image")),
+      modelID: ID.make("minimax/opened-image"),
+      type: "image",
+      package: "@opencode/ai/providers/openai-compatible/images",
+      settings: { baseURL: "https://llm.opened.site/v1" },
+    }),
+    Info.make({
+      ...Info.default(Provider.ID.make("opened"), ID.make("untrusted-image")),
+      modelID: ID.make("minimax/opened-image"),
+      type: "image",
+      package: "@opencode/ai/providers/openai-compatible/images",
+      settings: { baseURL: "https://attacker.invalid/v1" },
+    }),
+    Info.make({
       ...Info.default(Provider.ID.make("openrouter"), ID.make("typesafe/jev-1.13")),
       type: "decision",
       package: "@opencode/ai/providers/openrouter/decisions",
@@ -337,26 +371,30 @@ describe("image and decision generation", () => {
     connection: {
       active: (id) =>
         Effect.succeed(
-          id === Integration.ID.make("opencode")
+          id === Integration.ID.make("opencode") || id === Integration.ID.make("opened")
             ? IntegrationConnection.CredentialInfo.make({
                 type: "credential",
-                id: Credential.ID.make("console"),
-                label: "Acme",
+                id: Credential.ID.make(id === Integration.ID.make("opened") ? "opened" : "console"),
+                label: id === Integration.ID.make("opened") ? "OpenEd" : "Acme",
                 method: "oauth",
               })
             : undefined,
         ),
-      resolve: () =>
-        Effect.succeed(
+      resolve: (connection) => {
+        const opened = connection.type === "credential" && connection.id === Credential.ID.make("opened")
+        return Effect.succeed(
           Credential.OAuth.make({
             type: "oauth",
-            methodID: Integration.MethodID.make("device"),
-            access: "console-token",
-            refresh: "refresh",
-            expires: Number.MAX_SAFE_INTEGER,
-            metadata: { server: "https://console.example", orgID: "org_123", orgName: "Acme" },
+            methodID: Integration.MethodID.make(opened ? "opened-browser" : "device"),
+            access: opened ? "opened-token" : "console-token",
+            refresh: opened ? "" : "refresh",
+            expires: opened ? 0 : Number.MAX_SAFE_INTEGER,
+            metadata: opened
+              ? { scope: "llm:use" }
+              : { server: "https://console.example", orgID: "org_123", orgName: "Acme" },
           }),
-        ),
+        )
+      },
       key: () => Effect.die("unused"),
       external: () => Effect.die("unused"),
       activate: () => Effect.die("unused"),
@@ -397,6 +435,16 @@ describe("image and decision generation", () => {
               output_format: "png",
               usage: { input_tokens: 9, output_tokens: 272 },
             }),
+          )
+        if (request.url === "https://llm.opened.site/v1/images/generations")
+          return HttpClientResponse.fromWeb(
+            request,
+            Response.json({ data: [{ b64_json: "aW1hZ2U=" }], output_format: "png" }),
+          )
+        if (request.url === "https://attacker.invalid/v1/images/generations")
+          return HttpClientResponse.fromWeb(
+            request,
+            Response.json({ data: [{ b64_json: "aW1hZ2U=" }], output_format: "png" }),
           )
         if (request.url === "https://api.typesafe.ai/v1/systemone")
           return HttpClientResponse.fromWeb(
@@ -446,6 +494,35 @@ describe("image and decision generation", () => {
         tokens: { input: 9, output: 272 },
       })
     }),
+  )
+
+  mediaIt.effect("uses the saved OpenEd authorization for image generation through its LLM gateway", () =>
+    withEnvironment(
+      { OPENED_LLM_URL: "https://llm.opened.site/v1" },
+      Effect.gen(function* () {
+        requests.length = 0
+        const generate = yield* Generate.Service
+        yield* generate.image({ model: ref("opened", "image"), prompt: "A black circle" })
+        expect(requests[0]).toMatchObject({
+          url: "https://llm.opened.site/v1/images/generations",
+          headers: { authorization: "Bearer opened-token" },
+          body: { model: "opened-image", prompt: "A black circle" },
+        })
+      }),
+    ),
+  )
+
+  mediaIt.effect("does not send the OpenEd authorization to an untrusted image endpoint", () =>
+    withEnvironment(
+      { OPENED_LLM_URL: "https://llm.opened.site/v1" },
+      Effect.gen(function* () {
+        requests.length = 0
+        const generate = yield* Generate.Service
+        yield* generate.image({ model: ref("opened", "untrusted-image"), prompt: "A black circle" })
+        expect(requests[0]).toMatchObject({ url: "https://attacker.invalid/v1/images/generations" })
+        expect(requests[0]?.headers.authorization).toBeUndefined()
+      }),
+    ),
   )
 
   mediaIt.effect("keeps credential metadata out of image requests", () =>

@@ -106,6 +106,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
     malformed?: boolean
   }
   const tools = new Map<string, ToolState>()
+  const ignoredToolInputs = new Set<string>()
   const failureSnapshot = (tool: { readonly progress?: Tool.Metadata }, metadata?: Tool.Metadata) => {
     if (tool.progress === undefined) return metadata === undefined ? {} : { metadata }
     if (metadata === undefined) return { metadata: tool.progress }
@@ -307,7 +308,16 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
     readonly name: string
     readonly providerExecuted?: boolean
   }) {
-    if (tools.has(event.id)) return yield* Effect.die(new Error(`Duplicate tool input start: ${event.id}`))
+    const existing = tools.get(event.id)
+    if (existing) {
+      if (existing.name === event.name) {
+        // Some providers replay an input-start after the same call already began or ended.
+        // Keep its ID bound to the original call and ignore the replayed input fragments.
+        if (!toolInput.has(event.id)) ignoredToolInputs.add(event.id)
+        return existing
+      }
+      return yield* Effect.die(new Error(`Duplicate tool input start: ${event.id}`))
+    }
     yield* startAssistant()
     const tool: ToolState = {
       name: event.name,
@@ -331,6 +341,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
     event: { readonly id: string; readonly name: string },
     value?: string,
   ) {
+    if (ignoredToolInputs.has(event.id) && !toolInput.has(event.id)) return
     const tool = tools.get(event.id)
     if (!tool) return yield* Effect.die(new Error(`Tool input end before start: ${event.id}`))
     if (tool.name !== event.name)
@@ -475,6 +486,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
         yield* startToolInput(event)
         return
       case "tool-input-delta": {
+        if (ignoredToolInputs.has(event.id) && !toolInput.has(event.id)) return
         const tool = tools.get(event.id)
         if (!tool) return yield* Effect.die(new Error(`Tool input delta before start: ${event.id}`))
         if (tool.name !== event.name)
@@ -488,6 +500,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
         return
       case "tool-input-error":
         outputStarted = true
+        if (ignoredToolInputs.has(event.id) && !toolInput.has(event.id)) return
         yield* failMalformedToolInput(event)
         return
       case "tool-call": {
@@ -496,7 +509,11 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
         if (toolInput.has(event.id)) yield* endToolInput(event)
         if (tool.name !== event.name)
           return yield* Effect.die(new Error(`Tool call name changed for ${event.id}: ${tool.name} -> ${event.name}`))
-        if (tool.called) return yield* Effect.die(new Error(`Duplicate tool call: ${event.id}`))
+        if (tool.called) {
+          if (ignoredToolInputs.delete(event.id)) return
+          return yield* Effect.die(new Error(`Duplicate tool call: ${event.id}`))
+        }
+        ignoredToolInputs.delete(event.id)
         tool.called = true
         tool.providerExecuted = event.providerExecuted === true
         yield* bus.publish(SessionEvent.Tool.Called, {
