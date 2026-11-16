@@ -665,8 +665,13 @@ function OAuthAuto(props: {
   const client = useClient()
   const toast = useToast()
   const clipboard = useClipboard()
+  const theme = useTheme().surface("dialog")
   const newDesigns = useNewDesigns()
   const hideAuthorizationURL = props.integration.id === "opened"
+  const [pastingCallback, setPastingCallback] = createSignal(false)
+  const [callbackError, setCallbackError] = createSignal<string>()
+  const [callbackBusy, setCallbackBusy] = createSignal(false)
+  const [callbackSent, setCallbackSent] = createSignal(false)
   let timer: ReturnType<typeof setTimeout> | undefined
   let settled = false
 
@@ -689,12 +694,45 @@ function OAuthAuto(props: {
       .catch(toast.error)
   }
 
+  const pasteCallback = () => {
+    setCallbackError(undefined)
+    setPastingCallback(true)
+  }
+
+  const submitCallback = async (value: string) => {
+    const callback = openedCallbackURL(value, props.attempt.url)
+    if (!callback) {
+      setCallbackError("This URL does not match the current OpenEd authorization attempt.")
+      return
+    }
+    setCallbackError(undefined)
+    setCallbackBusy(true)
+    try {
+      const response = await fetch(callback, {
+        method: "GET",
+        redirect: "error",
+        credentials: "omit",
+        cache: "no-store",
+      })
+      await response.arrayBuffer()
+      if (!response.ok) throw new Error()
+      setCallbackSent(true)
+      setPastingCallback(false)
+    } catch {
+      setCallbackError("Could not send the callback. Start a new authorization attempt if this one expired.")
+    } finally {
+      setCallbackBusy(false)
+    }
+  }
+
   Keymap.createLayer(() => ({
     mode: "modal",
+    enabled: !pastingCallback(),
     commands: [
       { bind: newDesigns() ? "return" : "o", title: "Open authorization URL", group: "Dialog", run: open },
-      ...(!hideAuthorizationURL
-        ? [{ bind: "c", title: "Copy authorization details", group: "Dialog", run: copy }]
+      { bind: "c", title: "Copy authorization details", group: "Dialog", run: copy },
+      ...(hideAuthorizationURL && !callbackSent()
+        ? [{ bind: "p", title: "Paste callback URL", group: "Dialog", run: pasteCallback }]
         : []),
     ],
   }))
@@ -737,7 +775,6 @@ function OAuthAuto(props: {
 
   onMount(() => {
     poll()
-    if (hideAuthorizationURL) open()
   })
   onCleanup(() => {
     if (timer) clearTimeout(timer)
@@ -750,15 +787,73 @@ function OAuthAuto(props: {
   })
 
   return (
-    <OAuthView
-      title={props.title}
-      url={hideAuthorizationURL ? undefined : props.attempt.url}
-      instructions={props.attempt.instructions}
-      message="Waiting for authorization…"
-      onCopy={hideAuthorizationURL ? undefined : copy}
-      onOpen={open}
-    />
+    <Show
+      when={pastingCallback()}
+      fallback={
+        <OAuthView
+          title={props.title}
+          url={hideAuthorizationURL ? undefined : props.attempt.url}
+          instructions={props.attempt.instructions}
+          message={callbackSent() ? "Callback received. Finishing authorization…" : "Waiting for authorization…"}
+          onCopy={copy}
+          onOpen={open}
+          onPasteCallback={hideAuthorizationURL && !callbackSent() ? pasteCallback : undefined}
+        />
+      }
+    >
+      <DialogPrompt
+        title="Paste callback URL"
+        subtitle="Paste the full localhost URL shown by your browser after approving access."
+        placeholder="http://127.0.0.1:<port>/oauth/callback?code=…&state=…"
+        description={() => (
+          <Show when={callbackError()}>{(error) => <text fg={theme.text.feedback.error.base}>{error()}</text>}</Show>
+        )}
+        onConfirm={(value) => void submitCallback(value)}
+        onCancel={() => setPastingCallback(false)}
+        busy={callbackBusy()}
+        busyText="Sending callback…"
+      />
+    </Show>
   )
+}
+
+function openedCallbackURL(value: string, authorizationURL: string) {
+  try {
+    const authorization = new URL(authorizationURL)
+    const redirectURIs = authorization.searchParams.getAll("redirect_uri")
+    const expectedStates = authorization.searchParams.getAll("state")
+    if (redirectURIs.length !== 1 || expectedStates.length !== 1 || !expectedStates[0]) return
+
+    const redirect = new URL(redirectURIs[0])
+    const callback = new URL(value.trim())
+    const codes = callback.searchParams.getAll("code")
+    const states = callback.searchParams.getAll("state")
+    if (
+      redirect.protocol !== "http:" ||
+      redirect.hostname !== "127.0.0.1" ||
+      !redirect.port ||
+      redirect.pathname !== "/oauth/callback" ||
+      redirect.username ||
+      redirect.password ||
+      redirect.search ||
+      redirect.hash ||
+      callback.protocol !== redirect.protocol ||
+      callback.origin !== redirect.origin ||
+      callback.pathname !== redirect.pathname ||
+      callback.username ||
+      callback.password ||
+      callback.hash ||
+      codes.length !== 1 ||
+      !codes[0] ||
+      states.length !== 1 ||
+      states[0] !== expectedStates[0]
+    )
+      return
+
+    return callback
+  } catch {
+    return
+  }
 }
 
 function OAuthCode(props: {
@@ -826,6 +921,7 @@ function OAuthView(props: {
   message: string
   onCopy?: () => void
   onOpen?: () => void
+  onPasteCallback?: () => void
 }) {
   const theme = useTheme().surface("dialog")
   return (
@@ -843,6 +939,9 @@ function OAuthView(props: {
                   },
                 ]
               : []),
+            ...(props.onPasteCallback
+              ? [{ title: "paste callback", key: "p", onTrigger: props.onPasteCallback }]
+              : []),
             ...(props.onOpen ? [{ title: "open link", key: "enter", onTrigger: props.onOpen }] : []),
           ],
         },
@@ -853,6 +952,9 @@ function OAuthView(props: {
             secondary: [
               ...(props.onOpen ? [{ title: "open", key: "o" }] : []),
               ...(props.onCopy ? [{ title: "copy", key: "c" }] : []),
+              ...(props.onPasteCallback
+                ? [{ title: "paste callback", key: "p", onTrigger: props.onPasteCallback }]
+                : []),
             ],
           }}
         />

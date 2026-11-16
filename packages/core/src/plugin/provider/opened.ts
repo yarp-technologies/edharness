@@ -278,7 +278,7 @@ export const OpenedCatalogFilter = define({
 function fail(result: Deferred.Deferred<string, Error>, response: ServerResponse) {
   Effect.runFork(Deferred.fail(result, new Error("OpenEd authorization failed. Start a new attempt.")))
   response
-    .writeHead(400, { "Cache-Control": "no-store", "Connection": "close", "Content-Type": "text/plain; charset=utf-8" })
+    .writeHead(400, { "Cache-Control": "no-store", Connection: "close", "Content-Type": "text/plain; charset=utf-8" })
     .end("Authorization failed. Start a new attempt in EdHarness.")
 }
 
@@ -310,17 +310,19 @@ function exchange(input: {
     const request = yield* HttpClientRequest.post(`${input.origin}/api/agent-authorizations/token`).pipe(
       HttpClientRequest.setHeader("Content-Type", "application/json"),
       HttpClientRequest.schemaBodyJson(ExchangeRequest)({
-          grant_type: "authorization_code",
-          client_id: clientID,
-          code: input.code,
-          redirect_uri: input.redirectURI,
-          code_verifier: input.verifier,
+        grant_type: "authorization_code",
+        client_id: clientID,
+        code: input.code,
+        redirect_uri: input.redirectURI,
+        code_verifier: input.verifier,
       }),
     )
-    const response = yield* input.http.execute(request).pipe(
-      Effect.provideService(FetchHttpClient.RequestInit, { redirect: "error" }),
-      Effect.flatMap(HttpClientResponse.filterStatusOk),
-    )
+    const response = yield* input.http
+      .execute(request)
+      .pipe(
+        Effect.provideService(FetchHttpClient.RequestInit, { redirect: "error" }),
+        Effect.flatMap(HttpClientResponse.filterStatusOk),
+      )
     return yield* HttpClientResponse.schemaBodyJson(TokenResponse)(response)
   }).pipe(Effect.mapError(() => new Error("Loom token exchange failed. Start a new authorization attempt.")))
 }
