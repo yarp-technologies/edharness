@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="690" viewBox="0 0 1200 690">
+  <rect width="1200" height="690" fill="#ffffff"/>
+
+  <rect x="0" y="0" width="1200" height="206" rx="18" fill="#F3F0FF"/>
+  <text x="38" y="52" fill="#6047E8" font-family="Inter, sans-serif" font-size="22" font-weight="700">ВЫ</text>
+  <text x="38" y="112" fill="#18171D" font-family="Inter, sans-serif" font-size="29" font-weight="600">
+    <tspan x="38" dy="0">Перечисли названия моих дорожных карт в OpenEd</tspan>
+  </text>
+
+  <rect x="0" y="232" width="1200" height="458" rx="18" fill="#F8F7FC"/>
+  <text x="38" y="284" fill="#6047E8" font-family="Inter, sans-serif" font-size="22" font-weight="700">EDHARNESS</text>
+  <text x="38" y="348" fill="#18171D" font-family="Inter, sans-serif" font-size="27" font-weight="400">
+    <tspan x="38" dy="0">В OpenEd у вас сохранены две дорожные карты:</tspan>
+    <tspan x="38" dy="44">«Основы программирования» и «Подготовка к собеседованию».</tspan>
+    <tspan x="38" dy="44">Могу открыть любую и показать её разделы.</tspan>
+  </text>
+  <line x1="38" y1="515" x2="1162" y2="515" stroke="#E4E0F0" stroke-width="2"/>
+  <text x="38" y="566" fill="#696776" font-family="Inter, sans-serif" font-size="20" font-weight="400">
+    Пример ответа: данные будут зависеть от вашего аккаунта.
+  </text>
+</svg>
