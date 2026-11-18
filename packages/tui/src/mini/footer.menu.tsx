@@ -193,7 +193,7 @@ export function RunFooterMenu(props: {
             backgroundColor={props.background ? props.theme().shade : transparent}
           >
             <text fg={props.theme().muted} wrapMode="none" truncate>
-              {props.empty ?? "No matching items"}
+              {Locale.text(props.empty ?? "No matching items")}
             </text>
           </box>
         </box>
@@ -212,7 +212,7 @@ export function RunFooterMenu(props: {
                   wrapMode="none"
                   truncate
                 >
-                  {row.label}
+                  {Locale.text(row.label)}
                 </text>
               </box>
             )
@@ -226,18 +226,21 @@ export function RunFooterMenu(props: {
             active() ? props.theme().actionFocusedBg : props.background ? props.theme().shade : transparent
           const footer = () => {
             if (!row.item.footer) return
-            const title = stringWidth(row.item.display)
+            const title = stringWidth(Locale.text(row.item.display))
             const primary = row.item.footerTone && !(row.item.current && row.item.footerTone === "selection")
-            return (primary ? Math.min(row.item.icon ? 4 : 8, title) : title) + 1 + stringWidth(row.item.footer) <=
+            return (primary ? Math.min(row.item.icon ? 4 : 8, title) : title) +
+              1 +
+              stringWidth(Locale.text(row.item.footer)) <=
               available()
-              ? row.item.footer
+              ? Locale.text(row.item.footer)
               : undefined
           }
           const description = () => {
             if (!row.item.description) return
-            const remaining = available() - descriptionColumn() - (footer() ? stringWidth(footer()!) + 1 : 0)
-            if (remaining < Math.min(12, stringWidth(row.item.description))) return
-            return footerMenuText(row.item.description, remaining, props.mono)
+            const remaining = available() - descriptionColumn() - (footer() ? stringWidth(footer() ?? "") + 1 : 0)
+            const translated = Locale.text(row.item.description)
+            if (remaining < Math.min(12, stringWidth(translated))) return
+            return footerMenuText(translated, remaining, props.mono)
           }
           return (
             <box height={1} flexShrink={0} paddingRight={0} flexDirection="row" backgroundColor={background()}>
@@ -267,8 +270,8 @@ export function RunFooterMenu(props: {
                       flexShrink={0}
                     >
                       {footerMenuText(
-                        row.item.display,
-                        available() - (footer() ? stringWidth(footer()!) + 1 : 0),
+                        Locale.text(row.item.display),
+                        available() - (footer() ? stringWidth(footer() ?? "") + 1 : 0),
                         props.mono,
                       )}
                     </text>
@@ -279,7 +282,7 @@ export function RunFooterMenu(props: {
                           wrapMode="none"
                           flexShrink={0}
                         >
-                          {" ".repeat(Math.max(1, descriptionColumn() - stringWidth(row.item.display)))}
+                          {" ".repeat(Math.max(1, descriptionColumn() - stringWidth(Locale.text(row.item.display))))}
                         </text>
                         <text
                           fg={active() ? props.theme().actionFocusedText : props.theme().muted}

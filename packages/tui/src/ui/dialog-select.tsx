@@ -208,12 +208,28 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     ...(props.footerHints ?? []),
   ])
 
+  const localizeOption = (option: DialogSelectOption<T>): DialogSelectOption<T> => ({
+    ...option,
+    title: Locale.text(option.title),
+    category: option.category ? Locale.text(option.category) : undefined,
+    description: option.description ? Locale.text(option.description) : undefined,
+    footer: localizeText(option.footer),
+    searchFooter: localizeText(option.searchFooter),
+    details: option.details?.map(Locale.text),
+    detail: typeof option.detail === "string" ? Locale.text(option.detail) : option.detail,
+  })
+
   const filtered = createMemo(() => {
-    if (props.search) return props.search(store.filter).filter((x) => x.disabled !== true)
-    if (props.skipFilter || props.renderFilter === false) return props.options.filter((x) => x.disabled !== true)
+    if (props.search)
+      return props
+        .search(store.filter)
+        .filter((x) => x.disabled !== true)
+        .map(localizeOption)
+    if (props.skipFilter || props.renderFilter === false)
+      return props.options.filter((x) => x.disabled !== true).map(localizeOption)
     const needle = store.filter.toLowerCase()
     const options = pipe(
-      props.options,
+      props.options.map(localizeOption),
       filter((x) => x.disabled !== true),
     )
     if (!needle) return options
@@ -684,7 +700,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           r.focus()
         }, 1)
       }}
-      placeholder={(searchInTitle() ? props.titlePlaceholder : undefined) ?? props.placeholder ?? "Search"}
+      placeholder={Locale.text((searchInTitle() ? props.titlePlaceholder : undefined) ?? props.placeholder ?? "Search")}
       placeholderColor={theme.text.muted}
     />
   )
@@ -780,7 +796,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
               {([category, options], index) => (
                 <>
                   <Show when={category}>
-                    <DialogSelectCategory title={category} first={index() === 0} />
+                    <DialogSelectCategory title={Locale.text(category)} first={index() === 0} />
                   </Show>
                   <For each={options}>
                     {(option) => {
@@ -809,16 +825,20 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           }}
                         >
                           <DialogSelectRow
-                            title={option.title}
+                            title={Locale.text(option.title)}
                             titleView={option.titleView}
-                            footer={
-                              flatten() ? (option.searchFooter ?? option.category ?? option.footer) : option.footer
-                            }
+                            footer={localizeText(
+                              flatten() ? (option.searchFooter ?? option.category ?? option.footer) : option.footer,
+                            )}
                             footerColor={option.footerColor}
                             footerOverhang={option.footerOverhang}
                             titleWidth={option.titleWidth}
                             truncateTitle={option.truncateTitle}
-                            description={option.description !== category ? option.description : undefined}
+                            description={
+                              option.description !== category && option.description
+                                ? Locale.text(option.description)
+                                : undefined
+                            }
                             active={active()}
                             current={current()}
                             activeBackground={option.bg}
@@ -826,7 +846,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                             gutter={option.gutter}
                             margin={option.margin}
                           />
-                          <DialogSelectDetails details={option.details} width={detailsWidth()} />
+                          <DialogSelectDetails details={option.details?.map(Locale.text)} width={detailsWidth()} />
                         </box>
                       )
                     }}
@@ -870,10 +890,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 export function DialogSelectChoice(props: { value: string; active: boolean; open?: boolean }) {
   const theme = useTheme().surface("dialog")
   const text = () => {
-    if (!props.active) return `  ${props.value}  `
-    return props.open ? `  ${props.value} ↵` : `‹ ${props.value} ›`
+    const value = Locale.text(props.value)
+    if (!props.active) return `  ${value}  `
+    return props.open ? `  ${value} ↵` : `‹ ${value} ›`
   }
   return <span style={{ fg: props.active ? theme.text.action.primary.focused : theme.text.muted }}>{text()}</span>
+}
+
+function localizeText(value: JSX.Element | string | undefined): JSX.Element | string | undefined {
+  return typeof value === "string" ? Locale.text(value) : value
 }
 
 function DialogSelectCategory(props: { title: string; first: boolean }) {

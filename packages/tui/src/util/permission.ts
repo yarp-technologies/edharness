@@ -160,11 +160,11 @@ export function permissionAlwaysLines(input: { action: string; save?: ReadonlyAr
 }
 
 export function permissionOptionLabel(option: "once" | "always" | "reject" | "confirm" | "cancel") {
-  if (option === "once") return "Allow once"
-  if (option === "always") return "Always allow"
-  if (option === "reject") return "Reject"
-  if (option === "confirm") return "Confirm"
-  return "Cancel"
+  if (option === "once") return Locale.text("Allow once")
+  if (option === "always") return Locale.text("Always allow")
+  if (option === "reject") return Locale.text("Reject")
+  if (option === "confirm") return Locale.text("Confirm")
+  return Locale.text("Cancel")
 }
 
 function normalizeInput(action: string, value: unknown): Dict {

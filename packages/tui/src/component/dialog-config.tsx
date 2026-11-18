@@ -349,6 +349,7 @@ export const settings: Setting[] = [
     description: "Whether selecting text copies it",
     default: process.platform === "win32" ? "manual" : "select",
     values: ["manual", "select"],
+    labels: ["manual", "when selected"],
     keywords: ["selection", "clipboard"],
   },
   {

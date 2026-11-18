@@ -90,7 +90,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
                 onMouseUp={() => choose(key)}
               >
                 <text fg={key === store.active ? theme.text.action.primary.focused : theme.text.muted}>
-                  {Locale.titlecase(props.label?.[key] ?? key)}
+                  {Locale.text(Locale.titlecase(props.label?.[key] ?? key))}
                 </text>
               </box>
             )}
@@ -98,7 +98,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
         </box>
       }
     >
-      <text fg={theme.text.muted}>{props.message}</text>
+      <text fg={theme.text.muted}>{Locale.text(props.message)}</text>
     </DialogLayout>
   )
 }

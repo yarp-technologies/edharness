@@ -1558,18 +1558,18 @@ export function Prompt(props: PromptProps) {
       const agent = local.agent.current()
       const model = local.model.parsed()
       return {
-        agentLabel: agent ? Locale.titlecase(agent.id) : undefined,
+        agentLabel: agent ? Locale.text(Locale.titlecase(agent.id)) : undefined,
         agentColor: agent ? local.agent.color(agent.id) : undefined,
-        modelLabel: model.model,
-        providerLabel: model.provider,
+        modelLabel: Locale.text(model.model),
+        providerLabel: Locale.text(model.provider),
         variant: local.model.variant.current(),
       }
     },
     {
       agentLabel: undefined,
       agentColor: undefined,
-      modelLabel: local.model.parsed().model,
-      providerLabel: local.model.parsed().provider,
+      modelLabel: Locale.text(local.model.parsed().model),
+      providerLabel: Locale.text(local.model.parsed().provider),
       variant: undefined,
     },
   )
@@ -1625,7 +1625,10 @@ export function Prompt(props: PromptProps) {
     })()
     if (!value) return undefined
     const width = dimensions().width < 44 ? dimensions().width - 5 : Math.min(75, dimensions().width - 4) - 5
-    return Locale.takeWidth(value, Math.max(1, width)).trimEnd()
+    const localized = value
+      .replace("Run a command…", Locale.text("Run a command…"))
+      .replace("Ask anything…", Locale.text("Ask anything…"))
+    return Locale.takeWidth(localized, Math.max(1, width)).trimEnd()
   })
   const footerLocation = createMemo(() => {
     if (!props.sessionID) {

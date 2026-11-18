@@ -17,6 +17,7 @@ import { useDialog } from "../ui/dialog"
 import { DialogExperiments } from "./dialog-experiments"
 import { usePlugin } from "../plugin/context"
 import { errorMessage } from "../util/error"
+import { Locale } from "../util/locale"
 
 const graphWidth = 23
 const sampleIntervalMilliseconds = 2_000
@@ -266,11 +267,11 @@ export function DevToolsBar() {
           }
         >
           {" "}
-          Server
+          {Locale.text("Server")}
         </text>
         <Show when={panel() === "server"}>
           <PanelBox>
-            <PanelTitle>Server</PanelTitle>
+            <PanelTitle>{Locale.text("Server")}</PanelTitle>
             <Row label="Status" value={connected() ? "Connected" : client.connection.status()} />
             <Show when={client.connection.attempt() > 0}>
               <Row label="Reconnect" value={String(client.connection.attempt())} />
@@ -313,11 +314,11 @@ export function DevToolsBar() {
           }
         >
           {" "}
-          UI
+          {Locale.text("UI")}
         </text>
         <Show when={panel() === "ui"}>
           <PanelBox>
-            <PanelTitle>UI</PanelTitle>
+            <PanelTitle>{Locale.text("UI")}</PanelTitle>
             <Row label="Status" value={runtime()} />
             <ProcessStat
               label="Loop"
@@ -339,10 +340,12 @@ export function DevToolsBar() {
         </Show>
       </BarItem>
       <BarItem active={panel() === "theme"} onClick={() => toggle("theme")}>
-        <text fg={panel() === "theme" ? theme.text.action.primary.focused : theme.text.muted}>Theme</text>
+        <text fg={panel() === "theme" ? theme.text.action.primary.focused : theme.text.muted}>
+          {Locale.text("Theme")}
+        </text>
         <Show when={panel() === "theme"}>
           <PanelBox>
-            <PanelTitle>Theme</PanelTitle>
+            <PanelTitle>{Locale.text("Theme")}</PanelTitle>
             <Row label="Name" value={themes.selected} />
             <Row label="Mode" value={mode()} />
             <For each={themePerformance()}>{(entry) => <Row label={entry.key} value={String(entry.value)} />}</For>
@@ -355,10 +358,12 @@ export function DevToolsBar() {
         </Show>
       </BarItem>
       <BarItem active={panel() === "tools"} onClick={() => toggle("tools")}>
-        <text fg={panel() === "tools" ? theme.text.action.primary.focused : theme.text.muted}>Tools</text>
+        <text fg={panel() === "tools" ? theme.text.action.primary.focused : theme.text.muted}>
+          {Locale.text("Tools")}
+        </text>
         <Show when={panel() === "tools"}>
           <PanelBox>
-            <PanelTitle>Tools</PanelTitle>
+            <PanelTitle>{Locale.text("Tools")}</PanelTitle>
             <Action onClick={() => void dump()} disabled={dumping()} hoverBackground>
               {dumping() ? "Writing debug snapshot…" : "Write debug snapshot"}
             </Action>
@@ -433,7 +438,7 @@ export function DevToolsBar() {
           dialog.replace(() => <DialogExperiments />)
         }}
       >
-        <text fg={theme.text.muted}>Experiments</text>
+        <text fg={theme.text.muted}>{Locale.text("Experiments")}</text>
       </BarItem>
       <box flexGrow={1} minWidth={0}>
         <TimeToFirstDraw visible={timing()} width="100%" fg={theme.text.muted} label="Time to first draw" />

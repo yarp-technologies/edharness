@@ -1,6 +1,7 @@
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { DialogHeader, DialogLayout, useDialog } from "./dialog"
+import { Locale } from "../util/locale"
 
 export type DialogAlertProps = {
   title: string
@@ -40,12 +41,12 @@ export function DialogAlert(props: DialogAlertProps) {
             backgroundColor={theme.background.action.primary.focused}
             onMouseUp={confirm}
           >
-            <text fg={theme.text.action.primary.focused}>ok</text>
+            <text fg={theme.text.action.primary.focused}>{Locale.text("ok")}</text>
           </box>
         </box>
       }
     >
-      <text fg={theme.text.muted}>{props.message}</text>
+      <text fg={theme.text.muted}>{Locale.text(props.message)}</text>
     </DialogLayout>
   )
 }

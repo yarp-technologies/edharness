@@ -11,6 +11,7 @@ import { useTheme, useThemes } from "../../context/theme"
 import { usePlugin } from "../../plugin/context"
 import { use } from "./render-context"
 import { canonicalToolName } from "../../util/tool-display"
+import { Locale } from "../../util/locale"
 
 export const INLINE_TOOL_ICON_WIDTH = 2
 
@@ -115,7 +116,10 @@ export function InlineToolRow(props: {
           </Show>
         </Match>
         <Match when={true}>
-          <Show fallback={<Spinner color={props.color}>{props.pending}</Spinner>} when={props.complete || props.failed}>
+          <Show
+            fallback={<Spinner color={props.color}>{Locale.text(props.pending)}</Spinner>}
+            when={props.complete || props.failed}
+          >
             <box flexDirection="row">
               <text
                 width={INLINE_TOOL_ICON_WIDTH}

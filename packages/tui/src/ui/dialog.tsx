@@ -20,6 +20,7 @@ import { useToast } from "./toast"
 import { useClipboard } from "../context/clipboard"
 import { useConfig, useNewDesigns } from "../config"
 import { copy, copyOnSelectRelease } from "../util/selection"
+import { Locale } from "../util/locale"
 
 export type DialogSize = "medium" | "large" | "xlarge"
 
@@ -107,15 +108,11 @@ export function DialogHeader(
     <box flexDirection="row" justifyContent="space-between" gap={props.gap}>
       {props.titleView ?? (
         <text attributes={newDesigns() ? undefined : TextAttributes.BOLD} fg={theme.text.base}>
-          {props.title}
+          {typeof props.title === "string" ? Locale.text(props.title) : props.title}
         </text>
       )}
       {props.children}
-      <text
-        fg={theme.text.muted}
-        flexShrink={0}
-        onMouseUp={() => (props.onClose ?? dialog.clear)()}
-      >
+      <text fg={theme.text.muted} flexShrink={0} onMouseUp={() => (props.onClose ?? dialog.clear)()}>
         {props.closeLabel ?? "esc"}
       </text>
     </box>
@@ -125,7 +122,7 @@ export function DialogHeader(
       <box>
         {row()}
         <text fg={theme.text.muted} wrapMode="word">
-          {props.description}
+          {props.description ? Locale.text(props.description) : props.description}
         </text>
       </box>
     </Show>
@@ -275,7 +272,7 @@ function DialogFooterItem(props: { action: DialogFooterAction; variant: "primary
           fg: props.action.disabled ? theme.text.action.primary.disabled : (props.action.color ?? theme.text.base),
         }}
       >
-        {props.action.title}
+        {Locale.text(props.action.title)}
       </span>
       <Show when={props.action.key}>
         <span style={{ fg: props.action.disabled ? theme.text.action.primary.disabled : (props.action.color ?? key) }}>

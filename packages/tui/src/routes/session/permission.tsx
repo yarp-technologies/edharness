@@ -16,6 +16,7 @@ import { usePathFormatter } from "../../context/path-format"
 import { SimulationSemantics } from "../../simulation/semantics"
 import { PatchDiff } from "../../component/patch-diff"
 import { useToast } from "../../ui/toast"
+import { Locale } from "../../util/locale"
 
 type PermissionStage = "permission" | "reject"
 
@@ -79,7 +80,7 @@ function EditBody(props: { file?: string; diff?: string; patch?: string }) {
           when={props.patch}
           fallback={
             <box paddingLeft={1}>
-              <text fg={theme.text.muted}>No diff provided</text>
+              <text fg={theme.text.muted}>{Locale.text("No diff provided")}</text>
             </box>
           }
         >
@@ -171,9 +172,9 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
             ) : props.request.action === "external_directory" ? (
               <Show when={current.lines.length > 0}>
                 <box paddingLeft={1} gap={1}>
-                  <text fg={theme.text.muted}>Patterns</text>
+                  <text fg={theme.text.muted}>{Locale.text("Patterns")}</text>
                   <box>
-                    <For each={current.lines}>{(line) => <text fg={theme.text.base}>{line}</text>}</For>
+                    <For each={current.lines}>{(line) => <text fg={theme.text.base}>{Locale.text(line)}</text>}</For>
                   </box>
                 </box>
               </Show>
@@ -190,7 +191,7 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
                           : theme.text.muted
                       }
                     >
-                      {line}
+                      {Locale.text(line)}
                     </text>
                   )}
                 </For>
@@ -201,14 +202,14 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
             <box flexDirection="column" gap={0}>
               <box flexDirection="row" gap={1} flexShrink={0}>
                 <text fg={theme.text.feedback.warning.base}>{"△"}</text>
-                <text fg={theme.text.base}>Permission required</text>
+                <text fg={theme.text.base}>{Locale.text("Permission required")}</text>
               </box>
               <Show when={props.request.action !== "shell" && current.title}>
                 <box flexDirection="row" gap={1} paddingLeft={2} flexShrink={0}>
                   <text fg={theme.text.muted} flexShrink={0}>
                     {current.icon}
                   </text>
-                  <text fg={theme.text.base}>{current.title}</text>
+                  <text fg={theme.text.base}>{Locale.text(current.title)}</text>
                 </box>
               </Show>
             </box>
@@ -224,7 +225,9 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
                 <Show when={option === "always"} fallback={presentationBody()}>
                   <box paddingLeft={1} gap={1}>
                     <For each={permissionAlwaysLines(props.request)}>
-                      {(line, index) => <text fg={index() === 0 ? theme.text.muted : theme.text.base}>{line}</text>}
+                      {(line, index) => (
+                        <text fg={index() === 0 ? theme.text.muted : theme.text.base}>{Locale.text(line)}</text>
+                      )}
                     </For>
                   </box>
                 </Show>
@@ -322,10 +325,10 @@ function RejectPrompt(props: {
       <box gap={1} paddingLeft={1} paddingRight={3} paddingTop={1} paddingBottom={1}>
         <box flexDirection="row" gap={1} paddingLeft={1}>
           <text fg={theme.text.feedback.error.base}>{"△"}</text>
-          <text fg={theme.text.base}>Reject permission</text>
+          <text fg={theme.text.base}>{Locale.text("Reject permission")}</text>
         </box>
         <box paddingLeft={1}>
-          <text fg={theme.text.muted}>Tell OpenCode what to do differently</text>
+          <text fg={theme.text.muted}>{Locale.text("Tell OpenCode what to do differently")}</text>
         </box>
       </box>
       <box
@@ -347,7 +350,7 @@ function RejectPrompt(props: {
             SimulationSemantics.bind(() => ({
               instance: props.instance,
               role: "textbox",
-              label: "Rejection reason",
+              label: Locale.text("Rejection reason"),
               focused: val.focused,
               disabled: false,
             }))(val)
@@ -364,7 +367,7 @@ function RejectPrompt(props: {
           ref={SimulationSemantics.bind(() => ({
             instance: props.instance,
             role: "group",
-            label: "Rejection actions",
+            label: Locale.text("Rejection actions"),
           }))}
           flexDirection="row"
           gap={2}
@@ -375,13 +378,13 @@ function RejectPrompt(props: {
             ref={SimulationSemantics.bind(() => ({
               instance: props.instance,
               role: "button",
-              label: "Confirm rejection",
+              label: Locale.text("Confirm rejection"),
               disabled: false,
             }))}
             onMouseUp={() => props.onConfirm(input.plainText)}
           >
             <text fg={theme.text.base}>
-              enter <span style={{ fg: theme.text.muted }}>confirm</span>
+              enter <span style={{ fg: theme.text.muted }}>{Locale.text("confirm")}</span>
             </text>
           </box>
           <box
@@ -389,13 +392,13 @@ function RejectPrompt(props: {
             ref={SimulationSemantics.bind(() => ({
               instance: props.instance,
               role: "button",
-              label: "Cancel rejection",
+              label: Locale.text("Cancel rejection"),
               disabled: false,
             }))}
             onMouseUp={props.onCancel}
           >
             <text fg={theme.text.base}>
-              esc <span style={{ fg: theme.text.muted }}>cancel</span>
+              esc <span style={{ fg: theme.text.muted }}>{Locale.text("cancel")}</span>
             </text>
           </box>
         </box>
@@ -555,7 +558,7 @@ export function SessionQuestion<const T extends Record<string, string>>(props: {
           ref={SimulationSemantics.bind(() => ({
             instance: props.instance,
             role: "listbox",
-            label: props.choicesLabel ?? "Permission choices",
+            label: Locale.text(props.choicesLabel ?? "Permission choices"),
           }))}
           flexDirection="row"
           gap={1}
@@ -589,7 +592,7 @@ export function SessionQuestion<const T extends Record<string, string>>(props: {
                 <text
                   fg={option === store.selected ? theme.text.action.primary.focused : theme.text.action.primary.base}
                 >
-                  {props.options[option]}
+                  {Locale.text(props.options[option])}
                 </text>
               </box>
             )}
@@ -598,16 +601,17 @@ export function SessionQuestion<const T extends Record<string, string>>(props: {
         <box flexDirection="row" gap={2} flexShrink={0}>
           <Show when={props.fullscreen}>
             <text fg={theme.text.base}>
-              {shortcuts.get("permission.prompt.fullscreen")} <span style={{ fg: theme.text.muted }}>{hint()}</span>
+              {shortcuts.get("permission.prompt.fullscreen")}{" "}
+              <span style={{ fg: theme.text.muted }}>{Locale.text(hint())}</span>
             </text>
           </Show>
           <Show when={keys.length > 1}>
             <text fg={theme.text.base}>
-              {"⇆"} <span style={{ fg: theme.text.muted }}>select</span>
+              {"⇆"} <span style={{ fg: theme.text.muted }}>{Locale.text("select")}</span>
             </text>
           </Show>
           <text fg={theme.text.base}>
-            enter <span style={{ fg: theme.text.muted }}>confirm</span>
+            enter <span style={{ fg: theme.text.muted }}>{Locale.text("confirm")}</span>
           </text>
         </box>
       </box>

@@ -33,6 +33,7 @@ import { toolFiletype } from "./tool"
 import { transparent, type RunBlockTheme, type RunFooterTheme } from "./theme"
 import type { MiniPermissionRequest, PermissionReply } from "./types"
 import { PatchDiff } from "../component/patch-diff"
+import { Locale } from "../util/locale"
 
 function buttons(
   list: PermissionOption[],
@@ -46,30 +47,33 @@ function buttons(
   return (
     <box width="100%" flexDirection="row" flexWrap="wrap" columnGap={1} flexShrink={0}>
       <For each={list}>
-        {(option) => (
-          <box
-            width={stringWidth(permissionLabel(option)) + 2}
-            height={1}
-            flexShrink={0}
-            paddingLeft={1}
-            paddingRight={1}
-            backgroundColor={option === selected ? theme.actionFocusedBg : transparent}
-            onMouseMove={() => {
-              if (!disabled) onHover(option)
-            }}
-            onMouseUp={() => {
-              if (!disabled) onSelect(option)
-            }}
-          >
-            <text
-              wrapMode="none"
-              fg={option === selected ? theme.actionFocusedText : theme.actionSecondaryText}
-              attributes={option === selected && mono ? TextAttributes.INVERSE : undefined}
+        {(option) => {
+          const label = Locale.text(permissionLabel(option))
+          return (
+            <box
+              width={stringWidth(label) + 2}
+              height={1}
+              flexShrink={0}
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={option === selected ? theme.actionFocusedBg : transparent}
+              onMouseMove={() => {
+                if (!disabled) onHover(option)
+              }}
+              onMouseUp={() => {
+                if (!disabled) onSelect(option)
+              }}
             >
-              {permissionLabel(option)}
-            </text>
-          </box>
-        )}
+              <text
+                wrapMode="none"
+                fg={option === selected ? theme.actionFocusedText : theme.actionSecondaryText}
+                attributes={option === selected && mono ? TextAttributes.INVERSE : undefined}
+              >
+                {label}
+              </text>
+            </box>
+          )
+        }}
       </For>
     </box>
   )
@@ -111,7 +115,7 @@ export function RejectField(props: {
       minHeight={1}
       maxHeight={3}
       wrapMode="word"
-      placeholder="Tell EdHarness what to do differently"
+      placeholder={Locale.text("Tell EdHarness what to do differently")}
       placeholderColor={props.theme.muted}
       textColor={props.theme.formfieldText}
       focusedTextColor={props.theme.formfieldFocusedText}
@@ -168,11 +172,14 @@ export function RunPermissionBody(props: {
     permissionOptions(stage()).filter((option) => option !== "always" || (props.request.save?.length ?? 0) > 0),
   )
   const busy = createMemo(() => state().submitting)
-  const controlsWidth = () => opts().reduce((total, option) => total + stringWidth(permissionLabel(option)) + 3, -1)
+  const controlsWidth = () =>
+    opts().reduce((total, option) => total + stringWidth(Locale.text(permissionLabel(option))) + 3, -1)
   const hint = () =>
-    compact() && width() < 56
-      ? "pgup/pgdn scroll"
-      : `${props.mono ? "left/right" : "⇆"} select  enter confirm  esc ${stage() === "always" ? "cancel" : "reject"}`
+    Locale.text(
+      compact() && width() < 56
+        ? "pgup/pgdn scroll"
+        : `${props.mono ? "left/right" : "⇆"} select  enter confirm  esc ${stage() === "always" ? "cancel" : "reject"}`,
+    )
   const inlineControls = () => controlsWidth() + stringWidth(hint()) + 1 <= width() - (compact() ? 0 : 5)
   const title = createMemo(() => {
     if (stage() === "always") {
@@ -320,10 +327,10 @@ export function RunPermissionBody(props: {
       >
         <text height={1} fg={props.theme.text} wrapMode="none" truncate>
           <span style={{ fg: props.theme.permission }}>{props.mono ? "! " : "△ "}</span>
-          {title()}
+          {Locale.text(title())}
         </text>
         <Show when={!compact() && stage() === "reject"}>
-          <text fg={props.theme.muted}>Tell EdHarness what to do differently</text>
+          <text fg={props.theme.muted}>{Locale.text("Tell EdHarness what to do differently")}</text>
         </Show>
       </box>
 
@@ -362,7 +369,7 @@ export function RunPermissionBody(props: {
                 when={!busy()}
                 fallback={
                   <text fg={props.theme.running} height={1} wrapMode="none" truncate flexShrink={0}>
-                    {compact() ? "Waiting…" : "Waiting for permission event…"}
+                    {Locale.text(compact() ? "Waiting…" : "Waiting for permission event…")}
                   </text>
                 }
               >
@@ -371,7 +378,7 @@ export function RunPermissionBody(props: {
                     enter <span style={{ fg: props.theme.muted }}>{compact() ? "reject" : "confirm"}</span>
                   </text>
                   <text fg={props.theme.text} height={1} wrapMode="none" flexShrink={0}>
-                    esc <span style={{ fg: props.theme.muted }}>{compact() ? "back" : "cancel"}</span>
+                    esc <span style={{ fg: props.theme.muted }}>{Locale.text(compact() ? "back" : "cancel")}</span>
                   </text>
                 </box>
               </Show>
@@ -406,7 +413,7 @@ export function RunPermissionBody(props: {
                   <box width="100%" paddingLeft={compact() ? 0 : 1} flexShrink={0}>
                     <text width="100%" fg={props.theme.text} wrapMode="word" flexShrink={0}>
                       <span style={{ fg: props.theme.muted }}>{info().icon} </span>
-                      {info().title}
+                      {Locale.text(info().title)}
                     </text>
                   </box>
                   <Show
@@ -486,7 +493,7 @@ export function RunPermissionBody(props: {
                   </Show>
                   <Show when={!info().diff && !info().patch && info().lines.length === 0}>
                     <text width="100%" fg={props.theme.muted} flexShrink={0}>
-                      No diff provided
+                      {Locale.text("No diff provided")}
                     </text>
                   </Show>
                 </box>
@@ -547,11 +554,15 @@ export function RunPermissionBody(props: {
                     {props.mono ? "left/right" : "⇆"}
                     <span style={{ fg: props.theme.muted }}>{" select  "}</span>
                     enter<span style={{ fg: props.theme.muted }}>{" confirm  "}</span>
-                    esc<span style={{ fg: props.theme.muted }}> {stage() === "always" ? "cancel" : "reject"}</span>
+                    esc
+                    <span style={{ fg: props.theme.muted }}>
+                      {" "}
+                      {Locale.text(stage() === "always" ? "cancel" : "reject")}
+                    </span>
                   </>
                 }
               >
-                pgup/pgdn<span style={{ fg: props.theme.muted }}> scroll</span>
+                pgup/pgdn<span style={{ fg: props.theme.muted }}> {Locale.text("scroll")}</span>
               </Show>
             </text>
           </Show>

@@ -6,6 +6,7 @@ import { Show, createEffect, createSignal, onMount, type JSX } from "solid-js"
 import { Spinner } from "../component/spinner"
 import { useCursorStyle } from "../config"
 import { useRenderer } from "@opentui/solid"
+import { Locale } from "../util/locale"
 
 export type DialogPromptAction = {
   title: string
@@ -148,7 +149,7 @@ export function DialogPrompt(props: DialogPromptProps) {
         },
       }}
       legacyFooter={
-        <Show when={!props.busy} fallback={<text fg={theme.text.muted}>processing…</text>}>
+        <Show when={!props.busy} fallback={<text fg={theme.text.muted}>{Locale.text("processing…")}</text>}>
           <DialogFooter
             actions={{
               secondary: [{ title: "submit", command: "dialog.prompt.submit", onTrigger: confirm }, ...extraActions()],
@@ -167,7 +168,7 @@ export function DialogPrompt(props: DialogPromptProps) {
             setTextareaTarget(val)
           }}
           initialValue={props.value}
-          placeholder={props.placeholder ?? "Enter text"}
+          placeholder={Locale.text(props.placeholder ?? "Enter text")}
           placeholderColor={theme.text.muted}
           textColor={props.busy ? theme.text.formfield.disabled : theme.text.formfield.base}
           focusedTextColor={props.busy ? theme.text.formfield.disabled : theme.text.formfield.base}
@@ -175,7 +176,7 @@ export function DialogPrompt(props: DialogPromptProps) {
           cursorStyle={cursorStyle()}
         />
         <Show when={props.busy}>
-          <Spinner color={theme.text.muted}>{props.busyText ?? "Working…"}</Spinner>
+          <Spinner color={theme.text.muted}>{Locale.text(props.busyText ?? "Working…")}</Spinner>
         </Show>
       </box>
     </DialogLayout>

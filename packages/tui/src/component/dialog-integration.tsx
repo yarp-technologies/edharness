@@ -36,6 +36,7 @@ import { DialogSelect } from "../ui/dialog-select"
 import { Link } from "../ui/link"
 import { useToast } from "../ui/toast"
 import { errorMessage } from "../util/error"
+import { Locale } from "../util/locale"
 import {
   formInitialValues,
   formLabel,
@@ -158,12 +159,12 @@ export function DialogIntegration(
       options={options()}
       emptyView={
         <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-          <text fg={theme.text.muted}>No integrations available</text>
+          <text fg={theme.text.muted}>{Locale.text("No integrations available")}</text>
         </box>
       }
       noMatchView={
         <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-          <text fg={theme.text.muted}>No integrations found</text>
+          <text fg={theme.text.muted}>{Locale.text("No integrations found")}</text>
         </box>
       }
     />
@@ -539,7 +540,7 @@ function CommandView(props: { title: string; output: string; message: string }) 
             <text fg={overlayTheme.text.base}>{props.output.trim()}</text>
           </box>
         </DialogBleed>
-        <text fg={theme.text.muted}>{props.message}</text>
+        <text fg={theme.text.muted}>{Locale.text(props.message)}</text>
       </box>
     </DialogLayout>
   )
@@ -806,7 +807,9 @@ function OAuthAuto(props: {
         subtitle="Paste the full localhost URL shown by your browser after approving access."
         placeholder="http://127.0.0.1:<port>/oauth/callback?code=…&state=…"
         description={() => (
-          <Show when={callbackError()}>{(error) => <text fg={theme.text.feedback.error.base}>{error()}</text>}</Show>
+          <Show when={callbackError()}>
+            {(error) => <text fg={theme.text.feedback.error.base}>{Locale.text(error())}</text>}
+          </Show>
         )}
         onConfirm={(value) => void submitCallback(value)}
         onCancel={() => setPastingCallback(false)}
@@ -939,9 +942,7 @@ function OAuthView(props: {
                   },
                 ]
               : []),
-            ...(props.onPasteCallback
-              ? [{ title: "paste callback", key: "p", onTrigger: props.onPasteCallback }]
-              : []),
+            ...(props.onPasteCallback ? [{ title: "paste callback", key: "p", onTrigger: props.onPasteCallback }] : []),
             ...(props.onOpen ? [{ title: "open link", key: "enter", onTrigger: props.onOpen }] : []),
           ],
         },
@@ -963,7 +964,7 @@ function OAuthView(props: {
       <box gap={1}>
         <Show when={props.url}>{(url) => <Link href={url()} fg={theme.markdown.link} />}</Show>
         <Show when={props.instructions}>{(instructions) => <text fg={theme.text.muted}>{instructions()}</text>}</Show>
-        <text fg={theme.text.muted}>{props.message}</text>
+        <text fg={theme.text.muted}>{Locale.text(props.message)}</text>
       </box>
     </DialogLayout>
   )

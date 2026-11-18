@@ -26,6 +26,7 @@ import {
 import { useConfig } from "../config"
 import { TuiKeybind } from "../config/keybind"
 import { resolveInteractivity, useInteractivity } from "./interactivity"
+import { Locale } from "../util/locale"
 
 declare module "@opentui/keymap" {
   interface Command {
@@ -344,6 +345,9 @@ function useCommands(): Accessor<readonly KeymapCommand[]> {
         }
         return {
           ...command,
+          title: command.title ? Locale.text(command.title) : undefined,
+          description: command.description ? Locale.text(command.description) : undefined,
+          group: command.group ? Locale.text(command.group) : undefined,
           run: (input?: string) => {
             value.dispatch(entry.command.name, input)
           },

@@ -1537,7 +1537,7 @@ export function Session(props: {
             </box>
             <box height={1} flexShrink={0} flexDirection="row" justifyContent="flex-end">
               <Show when={firstJump()}>
-                <text fg={theme.text.feedback.info.base}>Loading session history…</text>
+                <text fg={theme.text.feedback.info.base}>{Locale.text("Loading session history…")}</text>
               </Show>
               <Show when={!firstJump() && awayFromBottom()}>
                 <box
@@ -1933,7 +1933,10 @@ function ExecutionError(props: { error: NonNullable<Extract<SessionMessageInfo, 
   const theme = useTheme()
   return (
     <box paddingLeft={3}>
-      <text fg={theme.text.feedback.error.base}>Error: {errorMessage(props.error)}</text>
+      <text fg={theme.text.feedback.error.base}>
+        {Locale.text("Error: ")}
+        {errorMessage(props.error)}
+      </text>
     </box>
   )
 }
@@ -2002,7 +2005,10 @@ function AssistantFooter(props: { message: SessionMessageAssistant }) {
         <Switch
           fallback={
             <box paddingLeft={3}>
-              <text fg={theme.text.feedback.error.base}>Error: {errorMessage(props.message.error)}</text>
+              <text fg={theme.text.feedback.error.base}>
+                {Locale.text("Error: ")}
+                {errorMessage(props.message.error)}
+              </text>
             </box>
           }
         >
@@ -2028,7 +2034,7 @@ function AssistantFooter(props: { message: SessionMessageAssistant }) {
             {(value) => <span style={{ fg: theme.text.muted }}> · {value().toFixed(1)} tok/s</span>}
           </Show>
           <Show when={interrupted()}>
-            <span style={{ fg: theme.text.muted }}> · interrupted</span>
+            <span style={{ fg: theme.text.muted }}> · {Locale.text("interrupted")}</span>
           </Show>
         </text>
       </box>
@@ -2043,7 +2049,7 @@ function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
     return (
       <box paddingLeft={3}>
         <text>
-          <span style={{ fg: theme.text.muted }}>↳ Moved to </span>
+          <span style={{ fg: theme.text.muted }}>{Locale.text("↳ Moved to ")}</span>
           <span style={{ fg: theme.text.feedback.info.base }}>{props.message.location.directory}</span>
         </text>
       </box>
@@ -2061,7 +2067,7 @@ function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
   }
   return (
     <box paddingLeft={3}>
-      <text fg={theme.text.muted}>{text()}</text>
+      <text fg={theme.text.muted}>{Locale.text(text())}</text>
     </box>
   )
 }
@@ -2089,7 +2095,7 @@ function SessionNoticeMessageV2(props: { message: SessionMessageInfo }) {
     if (state() === "error") return "failed"
     return state() ?? "finished"
   }
-  const heading = () => `${state() === "completed" ? "↳" : "!"} ${actor()} ${status()}`
+  const heading = () => `${state() === "completed" ? "↳" : "!"} ${actor()} ${Locale.text(status())}`
   const suffix = () =>
     source() === "shell"
       ? ""
@@ -2132,7 +2138,7 @@ function SessionSkillMessage(props: { message: Extract<SessionMessageInfo, { typ
   const theme = useTheme()
   return (
     <InlineToolRow icon="→" color={theme.text.muted} pending="Skill" complete={true}>
-      Skill {props.message.name}
+      {Locale.text(`Skill ${props.message.name}`)}
     </InlineToolRow>
   )
 }
@@ -2173,12 +2179,14 @@ function CompactionMessage(props: { message: Extract<SessionMessageInfo, { type:
             </Match>
           </Switch>
           <text fg={color()}>
-            {props.message.status === "completed" && props.message.native?.messages
-              ? "Provider compaction"
-              : "Compaction"}
+            {Locale.text(
+              props.message.status === "completed" && props.message.native?.messages
+                ? "Provider compaction"
+                : "Compaction",
+            )}
           </text>
           <Show when={cancelled()}>
-            <text fg={color()}>· cancelled</text>
+            <text fg={color()}>· {Locale.text("cancelled")}</text>
           </Show>
           <Show when={usage()}>
             <text fg={color()}>· {usage()}</text>
@@ -2212,7 +2220,7 @@ function CompactionQueued() {
       <box border={["top"]} borderColor={theme.border.base} flexGrow={1} />
       <box flexDirection="row" gap={1} paddingLeft={1} paddingRight={1}>
         <text fg={theme.text.muted}>◇</text>
-        <text fg={theme.text.muted}>Compaction queued</text>
+        <text fg={theme.text.muted}>{Locale.text("Compaction queued")}</text>
       </box>
       <box border={["top"]} borderColor={theme.border.base} flexGrow={1} />
     </box>
@@ -2263,14 +2271,14 @@ function RevertMessage(props: {
         backgroundColor={hover() ? theme.decrease(theme.background.raised.base) : theme.background.raised.base}
       >
         <text fg={theme.text.muted}>
-          {props.count} message{props.count === 1 ? "" : "s"} reverted
+          {Locale.text(`${props.count} message${props.count === 1 ? "" : "s"} reverted`)}
         </text>
         <Show when={props.files.length > 0}>
           <box paddingTop={1} paddingBottom={1} flexDirection="column">
             <For each={props.files}>
               {(file) => (
                 <box flexDirection="row" gap={1} flexShrink={0}>
-                  <text fg={theme.text.muted}>{statusLabel(file.status)}</text>
+                  <text fg={theme.text.muted}>{Locale.text(statusLabel(file.status))}</text>
                   <FilePath
                     value={file.file}
                     maxWidth={Math.max(
@@ -2294,7 +2302,8 @@ function RevertMessage(props: {
           </box>
         </Show>
         <text fg={theme.text.muted}>
-          <span style={{ fg: theme.text.base }}>{redoKey()}</span> or /redo to restore
+          <span style={{ fg: theme.text.base }}>{redoKey()}</span>
+          {Locale.text(" or /redo to restore")}
         </text>
       </box>
     </box>
@@ -2498,10 +2507,13 @@ function FreeLimitNotice(props: { message: Pick<SessionMessageAssistant, "error"
   )
   return (
     <box paddingLeft={3} flexDirection="column">
-      <text fg={theme.text.muted}>You've used today's free messages.{reset() ? ` They reset at ${reset()}.` : ""}</text>
       <text fg={theme.text.muted}>
-        Upgrade to OpenCode Go → <span style={{ fg: theme.text.base }}>/connect</span> · Switch model →{" "}
-        <span style={{ fg: theme.text.base }}>/models</span>
+        {Locale.text("You've used today's free messages.")}
+        {reset() ? ` ${Locale.text("They reset at")} ${reset()}.` : ""}
+      </text>
+      <text fg={theme.text.muted}>
+        {Locale.text("Upgrade to OpenCode Go")} → <span style={{ fg: theme.text.base }}>/connect</span> ·{" "}
+        {Locale.text("Switch model")} → <span style={{ fg: theme.text.base }}>/models</span>
       </text>
     </box>
   )
@@ -2525,8 +2537,8 @@ function AssistantRetry(props: { retry: SessionMessageAssistant["retry"] }) {
       {(retry) => (
         <box paddingLeft={3}>
           <text fg={theme.text.feedback.warning.base}>
-            ⚠ {seconds() > 0 ? `Retrying in ${seconds()}s` : "Retry due"} · attempt {retry().attempt} ·{" "}
-            {retry().error.message}
+            ⚠ {Locale.text(seconds() > 0 ? `Retrying in ${seconds()}s` : "Retry due")} · {Locale.text("attempt")}{" "}
+            {retry().attempt} · {retry().error.message}
           </text>
         </box>
       )}
@@ -2657,7 +2669,7 @@ function SessionImages(props: { images: readonly { uri: string }[]; paddingLeft?
                   dialog.replace(() => <DialogImagePreview images={images()} initial={index()} />)
                 }}
               >
-                <Show when={!media.failed()} fallback={<text>No preview</text>}>
+                <Show when={!media.failed()} fallback={<text>{Locale.text("No preview")}</text>}>
                   <image
                     source={media.source()}
                     fit="cover"
@@ -2850,7 +2862,7 @@ function StatusBadge(props: { children: string; raised?: boolean }) {
   return (
     <text flexShrink={0} bg={theme.decrease(background())} fg={theme.text.muted}>
       {" "}
-      {props.children}{" "}
+      {Locale.text(props.children)}{" "}
     </text>
   )
 }
@@ -2865,6 +2877,12 @@ type BlockToolProps = {
   spinner?: boolean
   error?: string
   errorColor?: RGBA
+}
+
+function localizedToolTitle(value: string) {
+  const heading = value.match(/^(#\s*)(.*)$/)
+  if (!heading) return Locale.text(value)
+  return `${heading[1]}${Locale.text(heading[2])}`
 }
 
 function BlockTool(props: BlockToolProps) {
@@ -2903,15 +2921,13 @@ function BlockTool(props: BlockToolProps) {
               <Show
                 when={props.spinner}
                 fallback={
-                  <text
-                    fg={permission() ? theme.text.feedback.warning.base : (props.headerColor ?? theme.text.muted)}
-                  >
-                    {title()}
+                  <text fg={permission() ? theme.text.feedback.warning.base : (props.headerColor ?? theme.text.muted)}>
+                    {localizedToolTitle(title())}
                   </text>
                 }
               >
                 <Spinner color={permission() ? theme.text.feedback.warning.base : theme.text.muted}>
-                  {title().replace(/^# /, "")}
+                  {localizedToolTitle(title()).replace(/^# /, "")}
                 </Spinner>
               </Show>
             )}
@@ -3098,9 +3114,9 @@ function ShellDisplay(props: {
           when={props.command}
           fallback={
             isRunning() || props.status === "streaming" ? (
-              <Spinner color={color()}>Writing command…</Spinner>
+              <Spinner color={color()}>{Locale.text("Writing command…")}</Spinner>
             ) : (
-              <text fg={theme.text.muted}>Writing command…</text>
+              <text fg={theme.text.muted}>{Locale.text("Writing command…")}</text>
             )
           }
         >

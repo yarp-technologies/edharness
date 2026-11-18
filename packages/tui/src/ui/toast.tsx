@@ -5,6 +5,7 @@ import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { SplitBorder } from "./border"
 import { TextAttributes } from "@opentui/core"
 import { errorMessage } from "../util/error"
+import { Locale } from "../util/locale"
 export type ToastOptions = {
   title?: string
   message: string
@@ -39,7 +40,7 @@ function ToastSurface(props: {
       attributes={hovered() && props.toast.action ? TextAttributes.BOLD : undefined}
       fg={hovered() ? theme.text.action.primary.base : theme.text.muted}
     >
-      {props.toast.action ? `› ${props.toast.action.label}` : "x"}
+      {props.toast.action ? `› ${Locale.text(props.toast.action.label)}` : "x"}
     </text>
   )
 
@@ -74,7 +75,7 @@ function ToastSurface(props: {
           fallback={
             <box flexDirection="row" width="100%">
               <text fg={theme.text.base} wrapMode="word" flexGrow={1}>
-                {props.toast.message}
+                {Locale.text(props.toast.message)}
               </text>
               {affordance()}
             </box>
@@ -82,18 +83,18 @@ function ToastSurface(props: {
         >
           <box flexDirection="row" width="100%" marginBottom={1}>
             <text attributes={TextAttributes.BOLD} fg={theme.text.base}>
-              {props.toast.title}
+              {props.toast.title ? Locale.text(props.toast.title) : undefined}
             </text>
             <box flexGrow={1} />
             {affordance()}
           </box>
           <text fg={theme.text.base} wrapMode="word" width="100%">
-            {props.toast.message}
+            {Locale.text(props.toast.message)}
           </text>
         </Show>
         <Show when={props.pending}>
           <text fg={theme.text.muted} marginTop={1}>
-            +{props.pending} more
+            {Locale.text(`+${props.pending} more`)}
           </text>
         </Show>
       </box>

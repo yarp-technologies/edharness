@@ -1,4 +1,75 @@
 import { stringWidth } from "./string-width"
+import { english } from "@opencode/ui/i18n/en"
+import { dict } from "@opencode/ui/i18n/ru"
+import tuiRussian from "./locale.ru"
+
+const russian = new Map(Object.entries(dict))
+const sharedRussian = Object.entries(english).reduce(
+  (result, [key, value]) => {
+    const translated = russian.get(key)
+    if (translated && translated !== value && result[value] === undefined) result[value] = translated
+    return result
+  },
+  {} as Record<string, string>,
+)
+
+const dynamicPatterns: readonly [RegExp, string][] = [
+  [/^Connect (.+)$/, "Подключить $1"],
+  [/^Connected (.+)$/, "Подключено: $1"],
+  [/^Disconnected (.+)$/, "Отключено: $1"],
+  [/^Press (.+) again to confirm$/, "Нажмите $1 ещё раз для подтверждения"],
+  [/^Switch to session in quick slot (\d+)$/, "Перейти к сессии в быстром слоте $1"],
+  [/^Switch to tab (\d+)$/, "Перейти к вкладке $1"],
+  [/^MCP server failed: (.+)$/, "Ошибка MCP-сервера: $1"],
+  [/^Connect "(.+)" to use its tools\.$/, "Подключите «$1», чтобы использовать его инструменты."],
+  [/^Session "(.+)" was deleted$/, "Сессия «$1» удалена"],
+  [/^Switched agent to (.+)$/, "Выбран агент: $1"],
+  [/^Switched agent from (.+) to (.+)$/, "Агент изменён: $1 → $2"],
+  [/^Retrying in (\d+)s$/, "Повтор через $1 с"],
+  [/^Skill (.+)$/, "Навык: $1"],
+  [/^Edit (.+)$/, "Изменить $1"],
+  [/^Read (.+)$/, "Прочитать $1"],
+  [/^List (.+)$/, "Список: $1"],
+  [/^Glob "(.*)"$/, "Поиск файлов: «$1»"],
+  [/^Grep "(.*)"$/, "Поиск текста: «$1»"],
+  [/^Access external directory (.+)$/, "Доступ к внешней папке $1"],
+  [/^Path: (.+)$/, "Путь: $1"],
+  [/^Pattern: (.*)$/, "Шаблон: $1"],
+  [/^Operation: (.+)$/, "Операция: $1"],
+  [/^Position: (.+)$/, "Позиция: $1"],
+  [/^Query: (.*)$/, "Запрос: $1"],
+  [/^URL: (.+)$/, "Ссылка: $1"],
+  [/^This will always allow (.+) for this project\.$/, "Это действие всегда будет разрешено для проекта: $1."],
+  [/^\+(\d+) more$/, "+$1 ещё"],
+]
+
+export function text(value: string): string {
+  if ((process.env.EDHARNESS_LANGUAGE ?? "ru").toLowerCase().startsWith("en")) return value
+  return tuiRussian[value] ?? sharedRussian[value] ?? dynamicRussian(value) ?? value
+}
+
+function dynamicRussian(value: string): string | undefined {
+  const reverted = value.match(/^(\d+) messages? reverted$/)
+  if (reverted) {
+    const count = Number(reverted[1])
+    const mod100 = count % 100
+    const mod10 = count % 10
+    if (mod10 === 1 && mod100 !== 11) return `${count} сообщение отменено`
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} сообщения отменено`
+    return `${count} сообщений отменено`
+  }
+  const connections = value.match(/^(\d+) connections$/)
+  if (connections) {
+    const count = Number(connections[1])
+    const mod100 = count % 100
+    const mod10 = count % 10
+    const word = mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "подключения" : "подключений"
+    return `${count} ${word}`
+  }
+  for (const [pattern, replacement] of dynamicPatterns) {
+    if (pattern.test(value)) return value.replace(pattern, replacement)
+  }
+}
 
 export function titlecase(str: string) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase())
@@ -6,13 +77,13 @@ export function titlecase(str: string) {
 
 export function time(input: number): string {
   const date = new Date(input)
-  return date.toLocaleTimeString(undefined, { timeStyle: "short" })
+  return date.toLocaleTimeString(locale(), { timeStyle: "short" })
 }
 
 export function datetime(input: number): string {
   const date = new Date(input)
   const localTime = time(input)
-  const localDate = date.toLocaleDateString()
+  const localDate = date.toLocaleDateString(locale())
   return `${localTime} · ${localDate}`
 }
 
@@ -76,6 +147,10 @@ export function truncateMiddle(str: string, maxLength: number = 35): string {
   if (keepEnd <= 0) return str.slice(0, keepStart) + ellipsis
 
   return str.slice(0, keepStart) + ellipsis + str.slice(-keepEnd)
+}
+
+function locale() {
+  return (process.env.EDHARNESS_LANGUAGE ?? "ru").toLowerCase().startsWith("en") ? "en" : "ru"
 }
 
 export * as Locale from "./locale"

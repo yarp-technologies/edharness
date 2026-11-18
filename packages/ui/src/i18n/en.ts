@@ -352,3 +352,4 @@ export type PluralLookupKey = `${PluralKey}.${PluralCategory}`
 export type LocaleKey = Key | PluralLookupKey
 
 export const dict: typeof source & Record<string, string> = source
+export const english = dict

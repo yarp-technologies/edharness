@@ -276,7 +276,7 @@ export class RunFooter implements FooterApi {
       const agent = currentAgent()
       if (agent) return agent.name
       const selected = selectedAgentID()
-      return selected ? Locale.titlecase(selected) : "Default"
+      return selected ? Locale.text(Locale.titlecase(selected)) : Locale.text("Default")
     }
     const [currentModel, setCurrentModel] = createSignal<RunInput["model"]>(options.model)
     this.currentModel = currentModel
