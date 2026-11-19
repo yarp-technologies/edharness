@@ -845,7 +845,17 @@ export const layer = (options?: Options) =>
               message: unavailable(target.name, target.entry.status),
             })
           const result = yield* recovering(target.name, target.entry, target.entry.client, (connection) =>
-            connection.callTool({ name: input.name, args: input.args, sessionID: input.sessionID }),
+            connection.callTool({ name: input.name, args: input.args, sessionID: input.sessionID }).pipe(
+              Effect.tapError((error) => {
+                if (!("_tag" in error) || error._tag !== "MCP.NeedsAuthError") return Effect.void
+                return Effect.gen(function* () {
+                  if (target.entry.client !== connection) return
+                  yield* stopServer(target.name, target.entry)
+                  target.entry.status = { status: "needs_auth", error: error.message }
+                  yield* bus.publish(McpEvent.StatusChanged, { server: target.name })
+                }).pipe(locks.withLock(target.name))
+              }),
+            ),
           ).pipe(
             Effect.mapError(
               (error) =>

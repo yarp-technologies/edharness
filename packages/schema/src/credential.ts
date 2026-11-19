@@ -22,9 +22,15 @@ const Switched = ephemeral({
   type: "credential.switched",
   schema: { integrationID: IntegrationID, credentialID: Schema.NullOr(ID) },
 })
+const ValueChanged = ephemeral({
+  type: "credential.value.changed",
+  schema: { integrationID: IntegrationID, credentialID: ID },
+})
 export const Event = {
   Updated,
   Switched,
+  // Only in-process consumers rebuild secret-bearing runtime configuration on value rotation.
+  ValueChanged,
   Definitions: inventory(Updated, Switched),
 }
 

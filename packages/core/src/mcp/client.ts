@@ -39,8 +39,12 @@ const ATTACHED_EXECUTION_TIMEOUT = 10 * 60 * 1_000 // 10 minutes
 const TERMINATE_TIMEOUT = 1_000
 const toError = (error: unknown) => (error instanceof Error ? error : new Error(String(error)))
 
+const needsAuth = (error: unknown) =>
+  error instanceof UnauthorizedError ||
+  (error instanceof SdkHttpError && (error.status === 401 || error.status === 403))
+
 // HTTP statuses and network error codes live on error properties and are lost once flattened to a message.
-const describe = (error: unknown) => {
+const describeError = (error: unknown) => {
   if (!(error instanceof Error)) return String(error)
   const detail =
     error instanceof SdkHttpError
@@ -182,6 +186,14 @@ export const connect = Effect.fnUntraced(function* (
     onChanged: () => changed[key](),
   })
 
+  // HTTP error messages can quote the response body, including an echoed Authorization header.
+  const authenticated =
+    config.type === "remote" && Object.keys(config.headers ?? {}).some((key) => key.toLowerCase() === "authorization")
+  const describe = (error: unknown) => {
+    if (needsAuth(error)) return "Authentication required. Reconnect to the MCP server."
+    return authenticated ? "The MCP server is unavailable." : describeError(error)
+  }
+
   // The SDK fails pending requests with a bare "Connection closed"; the transport error before it says why.
   let lastError: string | undefined
   const explain = (error: unknown) =>
@@ -280,6 +292,7 @@ export const connect = Effect.fnUntraced(function* (
     reported: false,
   }
   const failure = (error: unknown) => {
+    if (needsAuth(error)) return new NeedsAuthError({ server, message: describe(error) })
     if (!(error instanceof SdkHttpError) || session.transport?.sessionId === undefined) return new Error(explain(error))
     const expired =
       error.status === 404 ||
@@ -359,7 +372,7 @@ export const connect = Effect.fnUntraced(function* (
               orElse: () => Effect.fail(new Error(`Timed out after ${TERMINATE_TIMEOUT}ms`)),
             }),
             Effect.tapError((error) =>
-              Effect.logWarning("failed to terminate MCP session", { server, error: error.message }),
+              Effect.logWarning("failed to terminate MCP session", { server, error: describe(error) }),
             ),
             Effect.ignore,
           )
@@ -455,8 +468,8 @@ export const connect = Effect.fnUntraced(function* (
   }
 
   const error = Cause.squash(exit.cause)
-  if (error instanceof UnauthorizedError) return yield* new NeedsAuthError({ server, message: error.message })
-  if (error instanceof UnsupportedProtocolVersionError)
+  if (needsAuth(error)) return yield* new NeedsAuthError({ server, message: describe(error) })
+  if (!authenticated && error instanceof UnsupportedProtocolVersionError)
     return yield* new ConnectError({
       server,
       message: `${error.message}; the server supports ${error.supported.join(", ")}. Set "protocol" for this server to one of those or to "legacy".`,

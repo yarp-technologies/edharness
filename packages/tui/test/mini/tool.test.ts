@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { normalizeTool, toolInlineInfo, toolOutputText, toolPath, toolScroll } from "../../src/mini/tool"
+import { toolImageCommits } from "../../src/mini/stream-v2.image"
+import { normalizeTool, toolEntryBody, toolInlineInfo, toolOutputText, toolPath, toolScroll } from "../../src/mini/tool"
 import { canonicalToolPart } from "./fixture/tool-part"
 
 describe("Mini tool presentation", () => {
@@ -125,6 +126,44 @@ describe("Mini tool presentation", () => {
         }),
       ).description,
     ).toBe("1 match")
+  })
+
+  test("shows OpenEd activity without exposing compact tool input or output", () => {
+    const part = canonicalToolPart("opened_get_profile", {
+      status: "completed",
+      input: { query: "PRIVATE_INPUT" },
+      metadata: {},
+      content: [{ type: "text", text: "PRIVATE_OUTPUT" }],
+    })
+    const entry = { kind: "tool", source: "tool", tool: part.name, part, text: "PRIVATE_OUTPUT" } as const
+
+    expect(toolInlineInfo(part)).toEqual({ icon: "◈", title: "OpenEd account" })
+    expect(toolEntryBody({ ...entry, phase: "start" }, "")).toEqual({
+      type: "text",
+      content: "◈ Checking your OpenEd account",
+    })
+    expect(toolEntryBody({ ...entry, phase: "progress" }, "PRIVATE_OUTPUT")).toBeUndefined()
+    expect(toolEntryBody({ ...entry, phase: "final" }, "PRIVATE_OUTPUT")).toBeUndefined()
+    expect(toolOutputText(part.name, [{ type: "text", text: "PRIVATE_OUTPUT" }])).toBe("")
+    expect(
+      toolEntryBody({ ...entry, phase: "final", toolState: "error", toolError: "PRIVATE_ERROR" }, "PRIVATE_ERROR"),
+    ).toEqual({ type: "text", content: "Could not complete the OpenEd action." })
+  })
+
+  test("suppresses compact OpenEd image output and preserves other MCP output", () => {
+    const part = (name: string) =>
+      canonicalToolPart(name, {
+        status: "completed",
+        input: { query: "demo" },
+        metadata: {},
+        content: [{ type: "file", mime: "image/png", uri: "data:image/png;base64,AAAA", name: "result.png" }],
+      })
+
+    expect(toolImageCommits(normalizeTool(part("opened_get_image")), "message")).toEqual([])
+    const generic = part("demo_opened_get_image")
+    expect(toolInlineInfo(generic)).toMatchObject({ title: 'demo_opened_get_image {"query":"demo"}' })
+    expect(toolImageCommits(normalizeTool(generic), "message")).toMatchObject([{ text: "result.png" }])
+    expect(toolOutputText(generic.name, [{ type: "text", text: "DEMO_OUTPUT" }])).toBe("DEMO_OUTPUT")
   })
 
   test("keeps segment-safe contained tool paths relative", () => {

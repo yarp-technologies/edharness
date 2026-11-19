@@ -1826,7 +1826,8 @@ function TurnTokenUsage(props: {
 
 function TurnTokenToolCalls(props: { tools: SessionMessageAssistantTool[] }) {
   const theme = useTheme()
-  const nameWidth = () => Math.max(0, ...props.tools.map((tool) => tool.name.length)) + 2
+  const label = (tool: SessionMessageAssistantTool) => genericToolSummary(tool.name, {})
+  const nameWidth = () => Math.max(0, ...props.tools.map((tool) => label(tool).length)) + 2
   return (
     <Show when={props.tools.length > 0}>
       <box paddingLeft={2} flexDirection="column">
@@ -1834,7 +1835,7 @@ function TurnTokenToolCalls(props: { tools: SessionMessageAssistantTool[] }) {
           {(tool) => (
             <box flexDirection="row">
               <text width={nameWidth()} flexShrink={0} fg={theme.text.muted} attributes={TextAttributes.BOLD}>
-                {tool.name}
+                {label(tool)}
               </text>
               <text fg={theme.text.muted} attributes={TextAttributes.DIM} wrapMode="word" flexGrow={1} minWidth={0}>
                 {turnTokenToolSummary(tool)}
@@ -1848,7 +1849,8 @@ function TurnTokenToolCalls(props: { tools: SessionMessageAssistantTool[] }) {
 }
 
 function turnTokenToolSummary(tool: SessionMessageAssistantTool) {
-  if (canonicalToolName(tool.name) === "shell") return ""
+  const name = canonicalToolName(tool.name)
+  if (name === "shell" || name === "opened_api") return ""
   const data = tool.state.input
   if (typeof data === "string") return data
   const primaryKey = ["command", "id", "pattern", "url", "query", "path", "description", "code"].find(
@@ -2696,6 +2698,7 @@ function SessionImages(props: { images: readonly { uri: string }[]; paddingLeft?
 }
 
 function inlineToolImages(part: SessionMessageAssistantTool) {
+  if (canonicalToolName(part.name) === "opened_api") return []
   return toolDisplayContent(part.state).flatMap((content) =>
     content.type === "file" &&
     content.mime.startsWith("image/") &&
@@ -2714,9 +2717,9 @@ type ToolProps = {
 }
 function GenericTool(props: ToolProps) {
   const theme = useTheme()
-  const hideDetails = props.tool === "opened_api"
-  const output = createMemo(() => (hideDetails ? "" : stripAnsi(props.output?.trim() ?? "")))
-  const input = createMemo(() => (hideDetails ? [] : Object.entries(props.input)))
+  const hideDetails = () => canonicalToolName(props.tool) === "opened_api"
+  const output = createMemo(() => (hideDetails() ? "" : stripAnsi(props.output?.trim() ?? "")))
+  const input = createMemo(() => (hideDetails() ? [] : Object.entries(props.input)))
   const [expanded, setExpanded] = createSignal(false)
   const expandable = createMemo(() => input().length > 0 || output().length > 0)
   const loading = createMemo(() => props.part.state.status === "streaming" || props.part.state.status === "running")
@@ -2726,13 +2729,13 @@ function GenericTool(props: ToolProps) {
       <InlineTool
         icon={props.part.state.status === "error" ? "✗" : "✓"}
         complete={props.part.state.status === "completed"}
-        pending={hideDetails ? "OpenEd account" : props.tool}
+        pending={hideDetails() ? "OpenEd account" : props.tool}
         spinner={loading()}
         part={props.part}
         onClick={expandable() ? () => setExpanded((value) => !value) : undefined}
-        onErrorClick={hideDetails ? () => undefined : undefined}
+        onErrorClick={hideDetails() ? () => undefined : undefined}
       >
-        {hideDetails && props.part.state.status === "error"
+        {hideDetails() && props.part.state.status === "error"
           ? "Could not complete the OpenEd action."
           : genericToolSummary(props.tool, props.input)}
       </InlineTool>
@@ -2769,7 +2772,7 @@ function GenericTool(props: ToolProps) {
 }
 
 export function genericToolSummary(tool: string, input: Record<string, unknown>) {
-  if (tool === "opened_api") return "OpenEd account"
+  if (canonicalToolName(tool) === "opened_api") return "OpenEd account"
   const args = primitiveInputSummary(input).replace(/\s+/g, " ")
   return `${tool}${args ? ` ${args}` : ""}`
 }

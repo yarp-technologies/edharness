@@ -1118,13 +1118,52 @@ for (const entry of [
       })
       const error = yield* connect("resources", config, import.meta.dir).pipe(Effect.flip)
 
-      expect(error).toBeInstanceOf(McpClient.ConnectError)
+      expect(error).toBeInstanceOf(
+        entry.status === 401 || entry.status === 403 ? McpClient.NeedsAuthError : McpClient.ConnectError,
+      )
       expect(server.state.initializations).toBe(entry.attempts)
       expect(server.state.urls).toHaveLength(entry.attempts)
       if (entry.query || entry.codemode === false) expect(server.state.urls).toEqual([config.url])
     }),
   )
 }
+
+test.each([401, 403])(
+  "test_mcp_tool_call_unauthorized_marks_server_needs_auth_and_clears_tools (%i)",
+  async (status) => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const published: string[] = []
+          let calls = 0
+          const server = yield* resourceServer({
+            modern: true,
+            resources: false,
+            respond: (request) => {
+              if (request.headers.get("mcp-method") !== "tools/call") return
+              calls++
+              return new Response("private denial details", { status })
+            },
+          })
+          const config = new ConfigMCP.Remote({ type: "remote", url: server.url, oauth: false, protocol: "2026-07-28" })
+          yield* Effect.gen(function* () {
+            const mcp = yield* Mcp.Service
+            yield* mcp.connect("resources")
+            expect(yield* mcp.tools()).toHaveLength(1)
+            published.length = 0
+            const error = yield* mcp.callTool({ server: "resources", name: "echo" }).pipe(Effect.flip)
+            expect(error.message).not.toContain("private denial details")
+            expect((yield* mcp.servers())[0]?.status.status).toBe("needs_auth")
+            expect(yield* mcp.tools()).toEqual([])
+            expect(published).toContain(McpEvent.StatusChanged.type)
+            yield* mcp.callTool({ server: "resources", name: "echo" }).pipe(Effect.flip)
+            expect(calls).toBe(1)
+          }).pipe(Effect.provide(resourceMcpLayer(config, undefined, undefined, { published })))
+        }),
+      ),
+    )
+  },
+)
 
 test("reconnects and retries a tool call after the MCP session expires", async () => {
   await Effect.runPromise(

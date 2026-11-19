@@ -2,6 +2,8 @@ import type { IntegrationOAuthMethodRegistration } from "@opencode/plugin/effect
 import { define } from "@opencode/plugin/effect/plugin"
 import { Deferred, Duration, Effect, Schedule, Schema, Semaphore, Stream } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
+import { createHash } from "node:crypto"
+import { McpEvent } from "@opencode/schema/mcp-event"
 import type { Server, ServerResponse } from "node:http"
 import { Bus } from "../../bus.js"
 import { Credential } from "../../credential.js"
@@ -11,7 +13,6 @@ import { Model } from "../../model.js"
 import { fromServerID } from "../../opened-model.js"
 import { Provider } from "../../provider.js"
 import { configuredOpenedURL, openedOrigin } from "../../opened.js"
-import { OpenedApiTool } from "../../tool/plugin/opened-api.js"
 import { WellKnown } from "../../wellknown.js"
 import type { PluginInternal } from "../internal.js"
 
@@ -133,7 +134,6 @@ export const OpenedPlugin = define({
       integrations.update(integrationID, (integration) => (integration.name = "OpenEd"))
       integrations.method.update(oauth(http))
     })
-    yield* OpenedApiTool.Plugin.effect(ctx)
     yield* ctx.provider.transform((providers) => {
       providers.update(providerID, (provider) => {
         provider.name = "OpenEd"
@@ -167,13 +167,67 @@ export const OpenedPlugin = define({
         })
     })
 
-    const refresh = Effect.fn("OpenedPlugin.refresh")(function* () {
+    let remote: { connection: NonNullable<ActiveConnection>; headers: { Authorization: string } } | undefined
+    // Retain only the fingerprint after denial so model polling and unrelated credential updates
+    // cannot reinstall a rejected bearer. Updating the same credential row with a new key can.
+    let selected: string | undefined
+    const endpoint = new URL("/api/mcp", openedOrigin()).href
+    yield* ctx.mcp.transform((editor) => {
+      if (!remote) return editor.remove("opened")
+      editor.set("opened", {
+        type: "remote",
+        url: endpoint,
+        protocol: "2026-07-28",
+        oauth: false,
+        codemode: false,
+        headers: remote.headers,
+      })
+    })
+
+    const clearRemote = Effect.fnUntraced(function* () {
+      if (!remote) return
+      remote = undefined
+      yield* ctx.mcp.reload()
+    })
+    const reject = Effect.fnUntraced(function* (connection: NonNullable<ActiveConnection>) {
+      yield* ctx.integration.connection.status({
+        integrationID,
+        connection,
+        status: { status: "needs_auth", message: "OpenEd authorization is no longer valid. Reconnect to OpenEd." },
+      })
+      yield* clearRemote()
+    })
+    yield* bus.subscribe(McpEvent.StatusChanged).pipe(
+      Stream.filter((event) => event.data.server === "opened"),
+      Stream.runForEach(() =>
+        loading.withPermit(
+          Effect.gen(function* () {
+            if (!remote) return
+            const servers = yield* ctx.mcp.list().pipe(Effect.orDie)
+            if (servers.data.some((server) => server.name === "opened" && server.status.status === "needs_auth"))
+              yield* reject(remote.connection)
+          }),
+        ),
+      ),
+      Effect.forkScoped({ startImmediately: true }),
+    )
+
+    const refresh = Effect.fn("OpenedPlugin.refresh")(function* (changed?: Credential.ID) {
       const connection = yield* ctx.integration.connection.active(integrationID)
+      if (changed && (connection?.type !== "credential" || connection.id !== changed)) return
       const credential = connection
         ? yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
         : undefined
       const scope = credential?.type === "oauth" ? credential.metadata?.scope : undefined
-      if (!connection || credential?.type !== "oauth" || typeof scope !== "string" || !hasScope(scope, "llm:use")) {
+      if (
+        connection?.type !== "credential" ||
+        credential?.type !== "oauth" ||
+        !credential.access ||
+        typeof scope !== "string" ||
+        !hasScope(scope, "llm:use")
+      ) {
+        selected = undefined
+        yield* clearRemote()
         if (connection?.type === "credential" && credential?.type === "oauth")
           yield* ctx.integration.connection.status({
             integrationID,
@@ -186,6 +240,17 @@ export const OpenedPlugin = define({
           yield* ctx.provider.reload()
         }
         return
+      }
+
+      const fingerprint = createHash("sha256")
+        .update(connection.id)
+        .update("\0")
+        .update(credential.access)
+        .digest("hex")
+      if (selected !== fingerprint) {
+        selected = fingerprint
+        remote = { connection, headers: { Authorization: `Bearer ${credential.access}` } }
+        yield* ctx.mcp.reload()
       }
 
       const response = yield* http
@@ -202,11 +267,7 @@ export const OpenedPlugin = define({
         )
       if (!response) return
       if (response.status === 401 || response.status === 403) {
-        yield* ctx.integration.connection.status({
-          integrationID,
-          connection,
-          status: { status: "needs_auth", message: "OpenEd authorization is no longer valid. Reconnect to OpenEd." },
-        })
+        yield* reject(connection)
         if (loaded.connection) {
           loaded.models = []
           loaded.connection = undefined
@@ -234,14 +295,21 @@ export const OpenedPlugin = define({
         IntegrationConnection.key(yield* ctx.integration.connection.active(integrationID))
       )
         return
-      yield* ctx.integration.connection.status({ integrationID, connection, status: undefined })
+      if (remote) yield* ctx.integration.connection.status({ integrationID, connection, status: undefined })
       loaded.models = next
       loaded.connection = connection
       yield* ctx.provider.reload()
     })
 
-    yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(
-      Stream.runForEach(() => loading.withPermit(refresh())),
+    yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched, Credential.Event.ValueChanged]).pipe(
+      Stream.filter(
+        (event) => event.type === Credential.Event.Updated.type || event.data.integrationID === integrationID,
+      ),
+      Stream.runForEach((event) =>
+        loading.withPermit(
+          refresh(event.type === Credential.Event.ValueChanged.type ? event.data.credentialID : undefined),
+        ),
+      ),
       Effect.forkScoped({ startImmediately: true }),
     )
     yield* loading

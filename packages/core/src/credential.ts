@@ -280,6 +280,12 @@ const layer = Layer.effect(
           valueChanged: updates.value !== undefined,
           labelChanged: updates.label !== undefined && updates.label !== credential.label,
         })
+        if (updates.value !== undefined)
+          yield* bus.publish(
+            Event.ValueChanged,
+            { integrationID: credential.integrationID, credentialID: id },
+            { global: true },
+          )
         if (updates.label !== undefined && updates.label !== credential.label)
           yield* bus.publish(Event.Updated, {}, { global: true })
       }),

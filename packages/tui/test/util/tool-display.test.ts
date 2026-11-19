@@ -19,6 +19,12 @@ test("normalizes shared tool primitives", () => {
   expect(primitiveInputSummary({ path: "src/a.ts", line: 2 }, ["path"])).toBe("[line=2]")
 })
 
+test("groups namespaced OpenEd tools with the private legacy display", () => {
+  expect(canonicalToolName("opened_get_profile")).toBe("opened_api")
+  expect(canonicalToolName("opened_list_courses")).toBe("opened_api")
+  expect(canonicalToolName("demo_opened_get_profile")).toBe("demo_opened_get_profile")
+})
+
 describe("webSearchProviderLabel", () => {
   test("labels known providers", () => {
     expect(webSearchProviderLabel("parallel")).toBe("Web Search via Parallel")

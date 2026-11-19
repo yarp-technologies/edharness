@@ -246,6 +246,9 @@ function normalizeMetadata(name: string, value: unknown) {
 export function normalizeTool(tool: SessionMessageAssistantTool): SessionMessageAssistantTool {
   const name = canonicalToolName(tool.name)
   if (tool.state.status === "streaming") return { ...tool, name }
+  if (name === "opened_api" && (tool.state.status === "completed" || tool.state.status === "error")) {
+    return { ...tool, name, state: { ...tool.state, content: [{ type: "text", text: "" }] } }
+  }
   return {
     ...tool,
     name,

@@ -1,15 +1,19 @@
-import { describe, expect } from "bun:test"
-import { Deferred, Duration, Effect, Schedule, Schema } from "effect"
+import { describe, expect, test } from "bun:test"
+import { createMcpHandler, Server } from "@modelcontextprotocol/server"
+import { Config } from "@opencode/core/config"
+import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
+import { Mcp } from "@opencode/core/mcp/index"
+import { Deferred, Duration, Effect, Layer, Logger, Schedule, Schema } from "effect"
 import { TestClock, TestConsole } from "effect/testing"
 import { Credential } from "@opencode/core/credential"
-import { Agent } from "@opencode/core/agent"
 import { Integration } from "@opencode/core/integration"
 import { Model } from "@opencode/core/model"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
-import { Session } from "@opencode/core/session"
-import { SessionMessage } from "@opencode/core/session/message"
 import { Tool } from "@opencode/core/tool"
+import { ToolOutput } from "@opencode/core/tool-output"
+import { McpTool } from "@opencode/core/tool/mcp"
+import { IdentityPlugin } from "@opencode/core/plugin/identity"
 import { OpenedCatalogFilter, OpenedPlugin } from "@opencode/core/plugin/provider/opened"
 import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { Provider } from "@opencode/core/provider"
@@ -33,9 +37,10 @@ type Exchange = typeof ExchangeBody.Type
 type Remote = {
   exchanges: Array<{ url: string; headers: Record<string, string>; body: Exchange }>
   modelRequests: Array<{ url: string; headers: Record<string, string> }>
-  apiRequests: Array<{ url: string; method: string; headers: Record<string, string> }>
   token: { access_token: string; token_type: string; scope: string }
   exchangeStatus: number
+  mcpRequests: Array<{ url: string; method: string; authorization: string | null }>
+  callFailure?: number
   modelIDs: string[]
   onModels?: () => void
 }
@@ -59,8 +64,8 @@ const status = Effect.fn(function* (attempt: Integration.Attempt) {
 
 const remote = (): Remote => ({
   exchanges: [],
+  mcpRequests: [],
   modelRequests: [],
-  apiRequests: [],
   token: { access_token: "test-opened-access-secret", token_type: "Bearer", scope: "llm:use roadmaps:read" },
   exchangeStatus: 200,
   modelIDs: [
@@ -73,6 +78,17 @@ const remote = (): Remote => ({
 })
 
 function openedServer(state: Remote) {
+  const mcp = createMcpHandler(
+    () => {
+      const server = new Server({ name: "OpenEd", version: "1" }, { capabilities: { tools: {} } })
+      server.setRequestHandler("tools/list", async () => ({
+        tools: [{ name: "list_roadmaps", inputSchema: { type: "object" } }],
+      }))
+      server.setRequestHandler("tools/call", async () => ({ content: [{ type: "text", text: "Roadmaps" }] }))
+      return server
+    },
+    { legacy: "reject" },
+  )
   return Effect.acquireRelease(
     Effect.sync(() =>
       Bun.serve({
@@ -81,6 +97,13 @@ function openedServer(state: Remote) {
         async fetch(request) {
           const url = new URL(request.url)
           const headers = Object.fromEntries(request.headers.entries())
+          if (url.pathname === "/api/mcp") {
+            const method = headers["mcp-method"] ?? ""
+            state.mcpRequests.push({ url: url.href, method, authorization: headers.authorization ?? null })
+            if (state.callFailure && method === "tools/call")
+              return new Response(headers.authorization, { status: state.callFailure })
+            return mcp.fetch(request)
+          }
           if (url.pathname === "/api/agent-authorizations/token" && request.method === "POST") {
             state.exchanges.push({
               url: request.url,
@@ -93,10 +116,6 @@ function openedServer(state: Remote) {
             state.modelRequests.push({ url: request.url, headers })
             state.onModels?.()
             return Response.json({ data: state.modelIDs.map((id) => ({ id })) })
-          }
-          if (url.pathname === "/api/roadmaps" && request.method === "GET") {
-            state.apiRequests.push({ url: request.url, method: request.method, headers })
-            return Response.json([{ id: "roadmap-from-opened" }])
           }
           return new Response("Not found", { status: 404 })
         },
@@ -133,23 +152,216 @@ function callbackURL(attempt: Integration.Attempt) {
   return new URL(redirectURI)
 }
 
-function openedAPICall(snapshot: Tool.Snapshot, path: string, id: string) {
-  return snapshot.execute({
-    sessionID: Session.ID.make("ses_opened_api"),
-    agent: Agent.ID.make("build"),
-    messageID: SessionMessage.ID.make("msg_opened_api"),
-    call: { type: "tool-call", id, name: "opened_api", input: { method: "GET", path } },
-  })
+const mcpTests = testEffect(
+  Mcp.layer().pipe(
+    Layer.provideMerge(PluginTestLayer),
+    Layer.provideMerge(Logger.layer([Logger.withConsoleLog(Logger.formatStructured)])),
+  ),
+)
+const oauthValue = (access: string, scope = "llm:use") =>
+  Credential.OAuth.make({ type: "oauth", methodID, access, refresh: "", expires: 0, metadata: { scope } })
+
+function until<A, E, R>(effect: Effect.Effect<A, E, R>, predicate: (value: A) => boolean) {
+  return effect.pipe(
+    Effect.repeat({ until: predicate, schedule: Schedule.spaced("10 millis") }),
+    Effect.timeout("2 seconds"),
+  )
 }
 
-describe("OpenEd provider", () => {
-  it.effect("registers the authenticated OpenEd API tool for the bundled skill", () =>
-    Effect.gen(function* () {
-      yield* addPlugin()
-      const tools = yield* Tool.Service
-      expect((yield* tools.list()).some((tool) => tool.name === "opened_api")).toBe(true)
-    }),
+const withOpenedMcp = <A, E, R>(run: (state: Remote, origin: string) => Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const state = remote()
+    const server = yield* openedServer(state)
+    return yield* withEnvironment(
+      { OPENED_URL: server.url.href, OPENED_LLM_URL: `${server.url.origin}/v1` },
+      run(state, server.url.origin),
+    )
+  })
+
+const connectMcp = Effect.fn(function* (state: Remote) {
+  const credentials = yield* Credential.Service
+  const mcp = yield* Mcp.Service
+  const saved = yield* credentials.create({ integrationID, value: oauthValue(state.token.access_token) })
+  yield* addPlugin()
+  yield* until(mcp.tools(), (tools) => tools.some((tool) => tool.name === "list_roadmaps"))
+  return saved
+})
+
+describe("OpenEd MCP", () => {
+  mcpTests.live("registers named MCP tools in place of the retired OpenEd API tool", () =>
+    withOpenedMcp((state) =>
+      Effect.gen(function* () {
+        yield* connectMcp(state)
+        yield* Effect.gen(function* () {
+          const registration = yield* McpTool.Service
+          const tools = yield* Tool.Service
+          yield* registration.flush
+
+          const ids = (yield* tools.list()).map((tool) => tool.id)
+          expect(ids).toContain("opened_list_roadmaps")
+          expect(ids).not.toContain("opened_api")
+        }).pipe(Effect.provide(McpTool.layer.pipe(Layer.provide(AppNodeBuilder.build(ToolOutput.node)))))
+      }),
+    ),
   )
+
+  mcpTests.live("registers_opened_mcp_from_active_credential", () =>
+    withOpenedMcp((state, origin) =>
+      Effect.gen(function* () {
+        yield* connectMcp(state)
+        const mcp = yield* Mcp.Service
+        yield* mcp.transform((editor) => {
+          expect(editor.get("opened")).toMatchObject({
+            type: "remote",
+            protocol: "2026-07-28",
+            oauth: false,
+            url: `${origin}/api/mcp`,
+            headers: { Authorization: `Bearer ${state.token.access_token}` },
+          })
+        })
+        expect(
+          state.mcpRequests.every((request) => request.authorization === `Bearer ${state.token.access_token}`),
+        ).toBe(true)
+      }),
+    ),
+  )
+
+  mcpTests.live("does_not_register_opened_mcp_without_llm_use", () =>
+    withOpenedMcp((state) =>
+      Effect.gen(function* () {
+        const credentials = yield* Credential.Service
+        const integrations = yield* Integration.Service
+        const mcp = yield* Mcp.Service
+        yield* credentials.create({ integrationID, value: oauthValue(state.token.access_token, "llm:use-other") })
+        yield* addPlugin()
+        yield* until(integrations.get(integrationID), (data) => data?.connections[0]?.status?.status === "needs_auth")
+        expect(yield* mcp.servers()).toEqual([])
+        expect(state.mcpRequests).toEqual([])
+      }),
+    ),
+  )
+
+  mcpTests.live("updates_opened_mcp_when_credential_changes", () =>
+    withOpenedMcp((state) =>
+      Effect.gen(function* () {
+        const saved = yield* connectMcp(state)
+        const credentials = yield* Credential.Service
+        const mcp = yield* Mcp.Service
+        const toolUses = (secret: string) =>
+          Effect.gen(function* () {
+            yield* until(
+              Effect.sync(() => state.mcpRequests.at(-1)?.authorization),
+              (auth) => auth === `Bearer ${secret}`,
+            )
+            yield* mcp.callTool({ server: "opened", name: "list_roadmaps" })
+            expect(state.mcpRequests.at(-1)?.authorization).toBe(`Bearer ${secret}`)
+          })
+        yield* credentials.update(saved.id, { value: oauthValue("updated-opened-secret") })
+        yield* toolUses("updated-opened-secret")
+        yield* credentials.create({ integrationID, value: oauthValue("switched-opened-secret") })
+        yield* toolUses("switched-opened-secret")
+        yield* credentials.activate(saved.id)
+        yield* toolUses("updated-opened-secret")
+      }),
+    ),
+  )
+
+  mcpTests.live("removes_opened_mcp_when_connection_is_cleared", () =>
+    withOpenedMcp((state) =>
+      Effect.gen(function* () {
+        const saved = yield* connectMcp(state)
+        const integrations = yield* Integration.Service
+        const mcp = yield* Mcp.Service
+        yield* integrations.connection.remove(saved.id)
+        yield* until(mcp.servers(), (servers) => servers.length === 0)
+        expect(yield* mcp.tools()).toEqual([])
+        yield* mcp.transform((editor) => expect(editor.get("opened")).toBeUndefined())
+      }),
+    ),
+  )
+
+  mcpTests.live("removes_opened_mcp_after_unauthorized_response", () =>
+    withOpenedMcp((state) =>
+      Effect.gen(function* () {
+        const saved = yield* connectMcp(state)
+        const integrations = yield* Integration.Service
+        const mcp = yield* Mcp.Service
+        state.callFailure = 403
+        const error = yield* mcp.callTool({ server: "opened", name: "list_roadmaps" }).pipe(Effect.flip)
+        expect(error.message).not.toContain(state.token.access_token)
+        yield* until(mcp.servers(), (servers) => servers.length === 0)
+        expect((yield* integrations.get(integrationID))?.connections[0]?.status).toMatchObject({
+          status: "needs_auth",
+          message: expect.stringMatching(/reconnect/i),
+        })
+        expect(state.mcpRequests.filter((request) => request.method === "tools/call")).toHaveLength(1)
+        yield* mcp.transform((editor) => expect(editor.get("opened")).toBeUndefined()).pipe(Effect.scoped)
+        const credentials = yield* Credential.Service
+        const previous = state.modelRequests.length
+        yield* credentials.update(saved.id, { label: "renamed" })
+        yield* until(
+          Effect.sync(() => state.modelRequests.length),
+          (count) => count > previous,
+        )
+        expect(yield* mcp.servers()).toEqual([])
+        expect((yield* integrations.get(integrationID))?.connections[0]?.status?.status).toBe("needs_auth")
+        yield* credentials.update(saved.id, { value: oauthValue("fresh-opened-secret") })
+        yield* until(mcp.tools(), (tools) => tools.length > 0)
+        expect(state.mcpRequests.at(-1)?.authorization).toBe("Bearer fresh-opened-secret")
+      }),
+    ),
+  )
+
+  mcpTests.live("joins_opened_url_with_api_mcp", () =>
+    withOpenedMcp((state, origin) =>
+      Effect.gen(function* () {
+        yield* connectMcp(state)
+        expect(new Set(state.mcpRequests.map((request) => request.url))).toEqual(new Set([`${origin}/api/mcp`]))
+      }),
+    ),
+  )
+
+  mcpTests.live("does_not_persist_or_log_opened_access_token", () =>
+    withOpenedMcp((state) =>
+      Effect.gen(function* () {
+        yield* connectMcp(state)
+        const config = yield* Config.Service
+        const mcp = yield* Mcp.Service
+        const integrations = yield* Integration.Service
+        const result = yield* mcp.callTool({ server: "opened", name: "list_roadmaps" })
+        state.callFailure = 500
+        const failure = yield* mcp.callTool({ server: "opened", name: "list_roadmaps" }).pipe(Effect.flip)
+        state.callFailure = 403
+        const denied = yield* mcp.callTool({ server: "opened", name: "list_roadmaps" }).pipe(Effect.flip)
+        yield* until(mcp.servers(), (servers) => servers.length === 0)
+        const logs = [...(yield* TestConsole.logLines), ...(yield* TestConsole.errorLines)]
+        expect(JSON.stringify(logs)).toContain("mcp http authentication rejected")
+        expect(
+          JSON.stringify([
+            yield* config.entries(),
+            yield* mcp.servers(),
+            yield* integrations.get(integrationID),
+            result,
+            denied.message,
+            failure.message,
+            logs,
+          ]),
+        ).not.toContain(state.token.access_token)
+      }),
+    ),
+  )
+})
+
+describe("OpenEd provider", () => {
+  test("routes OpenEd requests to MCP without API implementation details", () => {
+    const prompt = IdentityPlugin.identity({
+      name: "OpenEd Light",
+      ref: Model.Ref.make({ providerID, id: Model.ID.make("light") }),
+    })
+
+    expect(prompt).toContain("OpenEd MCP")
+    expect(prompt).not.toMatch(/opened_api|\/api\/|endpoint paths?|HTTP|\bJSON\b|schemas?/i)
+  })
 
   it.effect("registers OpenEd and keeps it as the only model provider", () =>
     Effect.gen(function* () {
@@ -193,18 +405,6 @@ describe("OpenEd provider", () => {
         name: "OpenEd",
         methods: [{ id: methodID, type: "oauth", label: "Connect with Loom" }],
       })
-    }),
-  )
-
-  it.effect("requires an active OpenEd authorization and blocks administrative API routes", () =>
-    Effect.gen(function* () {
-      yield* addPlugin()
-      const tools = yield* Tool.Service
-      const snapshot = yield* tools.snapshot()
-      const missing = yield* openedAPICall(snapshot, "/roadmaps", "call_opened_api_missing").pipe(Effect.flip)
-      expect(missing.message).toContain("Connect OpenEd in EdHarness")
-      const restricted = yield* openedAPICall(snapshot, "/admin/users", "call_opened_api_admin").pipe(Effect.flip)
-      expect(restricted.message).toBe("Invalid OpenEd API path")
     }),
   )
 
@@ -318,21 +518,6 @@ describe("OpenEd provider", () => {
             Model.ID.make("image"),
           ])
 
-          const toolService = yield* Tool.Service
-          const toolSnapshot = yield* toolService.snapshot()
-          const apiResult = yield* openedAPICall(toolSnapshot, "/roadmaps", "call_opened_api")
-          expect(apiResult.output).toEqual({
-            status: 200,
-            contentType: "application/json;charset=utf-8",
-            body: '[{"id":"roadmap-from-opened"}]',
-          })
-          expect(state.apiRequests).toHaveLength(1)
-          expect(state.apiRequests[0]).toMatchObject({
-            url: `${server.url.origin}/api/roadmaps`,
-            method: "GET",
-            headers: { authorization: `Bearer ${state.token.access_token}` },
-          })
-          expect(JSON.stringify(apiResult)).not.toContain(state.token.access_token)
           const callbackClosed = yield* Effect.promise(() =>
             fetch(callback, { headers: { Connection: "close" } })
               .then(() => false)

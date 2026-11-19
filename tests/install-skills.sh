@@ -36,9 +36,8 @@ skills=(
     verification-before-completion
     writing-plans
     writing-skills
-    opened-api
-    opened-init
 )
+excluded_skills=(claude-api slack-gif-creator theme-factory opened-api opened-init)
 
 for skill in "${skills[@]}"; do
     test -f "$repository/packages/cli/skills/$skill/SKILL.md"
@@ -51,77 +50,83 @@ mkdir -p "$dist_dir/skills" "$home_dir" "$fake_bin"
 printf '%s\n' '#!/bin/sh' >"$dist_dir/opencode"
 chmod 0755 "$dist_dir/opencode"
 
-for skill in "${skills[@]}"; do
-    if [[ "$skill" == opened-api || "$skill" == opened-init ]]; then
-        cp -R "$repository/packages/cli/skills/$skill" "$dist_dir/skills/$skill"
-    else
-        mkdir -p "$dist_dir/skills/$skill"
-        printf '%s\n' "---" "name: $skill" "description: bundled test skill" "---" >"$dist_dir/skills/$skill/SKILL.md"
-    fi
+for skill in "${skills[@]}" "${excluded_skills[@]}"; do
+    mkdir -p "$dist_dir/skills/$skill"
+    printf '%s\n' "---" "name: $skill" "description: bundled test skill" "---" >"$dist_dir/skills/$skill/SKILL.md"
 done
 
-fake_start="$work_dir/npx.started"
-fake_done="$work_dir/npx.done"
+fake_continue="$work_dir/npx.continue"
+remote_status="$work_dir/remote.status"
+bundle_status="$work_dir/bundle.status"
 fake_log="$work_dir/npx.log"
+cat >"$fake_bin/nohup" <<'EOF'
+#!/bin/sh
+"$@"
+printf '%s\n' "$?" >"$INSTALL_STATUS"
+EOF
 printf '%s\n' \
     '#!/bin/sh' \
     'printf "%s\n" "$*" >>"$FAKE_LOG"' \
-    'touch "$FAKE_START"' \
-    'case "$*" in *anthropics/skills*) sleep 2 ;; esac' \
-    'case "$*" in *yarp-technologies/opened-skill*) touch "$FAKE_DONE" ;; esac' \
+    'for _ in $(seq 1 1000); do' \
+    '    test -f "$FAKE_CONTINUE" && exit 0' \
+    '    sleep 0.01' \
+    'done' \
+    'exit 1' \
     >"$fake_bin/npx"
-chmod 0755 "$fake_bin/npx"
+chmod 0755 "$fake_bin/npx" "$fake_bin/nohup"
 
-FAKE_DONE="$fake_done" FAKE_LOG="$fake_log" FAKE_START="$fake_start" \
+wait_for_file() {
+    for _ in $(seq 1 1000); do
+        test -s "$1" && return
+        sleep 0.01
+    done
+    printf 'install-skills: timed out waiting for %s\n' "$1" >&2
+    return 1
+}
+
+FAKE_CONTINUE="$fake_continue" FAKE_LOG="$fake_log" INSTALL_STATUS="$remote_status" \
     HOME="$home_dir" PATH="$fake_bin:/usr/bin:/bin" SHELL=/bin/bash \
     bash "$repository/install" --binary "$dist_dir/opencode"
 
-for _ in $(seq 1 100); do
-    test -f "$fake_start" && break
-    sleep 0.01
-done
-test -f "$fake_start"
-test ! -f "$fake_done"
+wait_for_file "$fake_log"
+test ! -e "$remote_status"
 grep -Fq -- '--global' "$fake_log"
 grep -Fq -- '--agent *' "$fake_log"
 grep -Fq -- 'algorithmic-art' "$fake_log"
 
-for _ in $(seq 1 1000); do
-    test -f "$fake_done" && break
-    sleep 0.01
-done
-test -f "$fake_done"
+touch "$fake_continue"
+wait_for_file "$remote_status"
+test "$(cat "$remote_status")" = 0
 
 grep -Fq -- 'writing-skills' "$fake_log"
-grep -F -- 'yarp-technologies/opened-skill' "$fake_log" | grep -Fq -- '--global --yes --agent opencode --skill opened-api opened-init'
-if grep -Eq -- 'claude-api|slack-gif-creator|theme-factory' "$fake_log"; then
-    printf '%s\n' 'install-skills: excluded skills were requested' >&2
-    exit 1
-fi
 
 rm "$fake_bin/npx"
 bundle_home="$work_dir/bundle-home"
-HOME="$bundle_home" PATH="$fake_bin:/usr/bin:/bin" SHELL=/bin/bash \
+INSTALL_STATUS="$bundle_status" HOME="$bundle_home" PATH="$fake_bin:/usr/bin:/bin" SHELL=/bin/bash \
     bash "$repository/install" --binary "$dist_dir/opencode"
 
-for _ in $(seq 1 1000); do
-    test -f "$bundle_home/.agents/skills/opened-init/scripts/opened-init.mjs" && break
-    sleep 0.01
-done
-test -f "$bundle_home/.agents/skills/opened-init/scripts/opened-init.mjs"
+wait_for_file "$bundle_status"
+test "$(cat "$bundle_status")" = 0
 
 for skill in "${skills[@]}"; do
     test -f "$bundle_home/.agents/skills/$skill/SKILL.md"
 done
-test -f "$bundle_home/.agents/skills/opened-api/references/api.md"
-test -f "$bundle_home/.agents/skills/opened-api/scripts/opened-init.mjs"
-test -f "$bundle_home/.agents/skills/opened-init/scripts/opened-init.mjs"
 
-if test -e "$bundle_home/.agents/skills/claude-api" ||
-    test -e "$bundle_home/.agents/skills/slack-gif-creator" ||
-    test -e "$bundle_home/.agents/skills/theme-factory"; then
-    printf '%s\n' 'install-skills: excluded bundled skills were installed' >&2
-    exit 1
+result=0
+for skill in "${excluded_skills[@]}"; do
+    if grep -Fq -- "$skill" "$fake_log"; then
+        printf 'install-skills: excluded skill was requested: %s\n' "$skill" >&2
+        result=1
+    fi
+    if test -e "$bundle_home/.agents/skills/$skill"; then
+        printf 'install-skills: excluded bundled skill was installed: %s\n' "$skill" >&2
+        result=1
+    fi
+done
+if grep -Fq -- 'yarp-technologies/opened-skill' "$fake_log"; then
+    printf '%s\n' 'install-skills: retired OpenEd source was requested' >&2
+    result=1
 fi
+test "$result" = 0
 
 printf '%s\n' 'install-skills: pass'

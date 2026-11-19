@@ -3,9 +3,11 @@ import { type Renderable, ScrollBoxRenderable } from "@opentui/core"
 import { createTestRenderer } from "@opentui/core/testing"
 import { Effect, FileSystem } from "effect"
 import { Global } from "@opencode/util/global"
+import { createAppFixture } from "./fixture/app"
 import { createEventStream, createFetch, directory, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
 import { waitForHighlightedFrame } from "./fixture/frame"
+import { canonicalToolPart } from "./mini/fixture/tool-part"
 
 test.each([
   "bottom",
@@ -398,4 +400,93 @@ test.each([
     if (!setup.renderer.isDestroyed) setup.renderer.destroy()
     await task.finally(() => server.stop(true))
   }
+})
+
+test("keeps OpenEd MCP details private in the session transcript", async () => {
+  const session = {
+    id: "ses_opened_mcp_privacy",
+    title: "OpenEd tool activity",
+    projectID: "project",
+    location: { directory },
+    cost: 0,
+    tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    time: { created: 0, updated: 0 },
+  }
+  const image = "e".repeat(64)
+  const imageRequests: string[] = []
+  const messages = [
+    { type: "user", id: "msg_user", text: "Fixture prompt", time: { created: 0 } },
+    {
+      type: "assistant",
+      id: "msg_assistant",
+      agent: "build",
+      model: { providerID: "fixture", id: "fixture" },
+      finish: "stop",
+      tokens: { ...session.tokens, output: 1 },
+      time: { created: 1, completed: 3 },
+      content: [
+        canonicalToolPart("opened_get_profile", {
+          status: "completed",
+          input: { query: "PRIVATE_INPUT" },
+          metadata: {},
+          content: [
+            { type: "text", text: "PRIVATE_OUTPUT" },
+            { type: "file", mime: "image/png", uri: `media:${image}` },
+          ],
+        }),
+        canonicalToolPart("opened_update_profile", {
+          status: "error",
+          input: { query: "PRIVATE_INPUT" },
+          metadata: {},
+          error: { type: "Fixture", message: "PRIVATE_ERROR" },
+        }),
+        canonicalToolPart("demo_opened_lookup", {
+          status: "completed",
+          input: { query: "DEMO_INPUT" },
+          metadata: {},
+          content: [{ type: "text", text: "DEMO_OUTPUT" }],
+        }),
+        { type: "text", text: "Fixture answer", time: { created: 2 } },
+      ],
+    },
+  ]
+  const sessionRoute = `/api/session/${session.id}`
+  await using app = await createAppFixture({
+    width: 100,
+    height: 30,
+    args: { sessionID: session.id },
+    config: {
+      animations: false,
+      session: { verbosity: "high", image_preview: true },
+      debug: { turn_tokens: "verbose" },
+    },
+    fetch: (url) => {
+      if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
+      if (url.pathname === sessionRoute) return json({ data: session })
+      if (url.pathname === `${sessionRoute}/message`) return json({ data: messages.toReversed(), cursor: {} })
+      if ([`${sessionRoute}/inbox`, `${sessionRoute}/permission`].includes(url.pathname)) return json({ data: [] })
+      if (url.pathname === `/api/experimental/media/${image}`) {
+        imageRequests.push(url.pathname)
+        return new Response(null, { status: 404 })
+      }
+    },
+  })
+  await app.ready
+  await waitForHighlightedFrame(app, (frame) => frame.includes("Fixture answer"))
+
+  const click = async (label: string) => {
+    const lines = app.captureCharFrame().split("\n")
+    const y = lines.findIndex((line) => line.includes(label))
+    expect(y).toBeGreaterThanOrEqual(0)
+    await app.mockMouse.click(lines[y].indexOf(label), y)
+  }
+  expect(app.captureCharFrame()).not.toContain("PRIVATE_INPUT")
+  await click("OpenEd account")
+  await click("Could not complete the OpenEd action.")
+  await click("demo_opened_lookup [query=DEMO_INPUT]")
+  await app.waitForFrame((frame) => frame.includes("DEMO_OUTPUT"))
+  await click("Tokens:")
+  await app.waitForFrame((frame) => frame.includes("Cached") && frame.includes("DEMO_INPUT"))
+  expect(app.captureCharFrame()).not.toMatch(/PRIVATE_(INPUT|OUTPUT|ERROR)|opened_(get|update)_profile/)
+  expect(imageRequests).toEqual([])
 })
