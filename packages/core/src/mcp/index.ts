@@ -439,6 +439,15 @@ export const layer = (options?: Options) =>
             }),
           ),
         )
+        connection.onNeedsAuth(() =>
+          live(
+            Effect.gen(function* () {
+              yield* stopServer(name, entry)
+              entry.status = { status: "needs_auth", error: "MCP authorization is no longer valid" }
+              yield* bus.publish(McpEvent.StatusChanged, { server: name })
+            }),
+          ),
+        )
         // Background refreshes (list-changed) can observe the expiry too; they do not retry, so
         // reconnect here for them. Foreground calls reconnect through `recovering`.
         connection.onSessionExpired(() => fork(recover(name, entry, connection)))

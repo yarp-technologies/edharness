@@ -143,6 +143,7 @@ export interface Connection {
     readonly sessionID?: Session.ID
   }) => Effect.Effect<CallToolResult, Error>
   readonly onClose: (callback: (reason: string) => void) => void
+  readonly onNeedsAuth: (callback: () => void) => void
   readonly onSessionExpired: (callback: () => void) => void
   readonly onToolsChanged: (callback: () => void) => void
   readonly onPromptsChanged: (callback: () => void) => void
@@ -276,10 +277,19 @@ export const connect = Effect.fnUntraced(function* (
   // it with 404, or with the 400 a freshly restarted single-session server emits, means it no longer
   // knows this connection. Modern connections never carry a session id, so a modern 404 for an unknown
   // method is not mistaken for expiry. Other 400s pass through untouched.
-  const session: { transport?: StreamableHTTPClientTransport; expired?: () => void; reported: boolean } = {
+  const session: {
+    transport?: StreamableHTTPClientTransport
+    expired?: () => void
+    needsAuth?: () => void
+    reported: boolean
+  } = {
     reported: false,
   }
   const failure = (error: unknown) => {
+    if (error instanceof UnauthorizedError || (error instanceof SdkHttpError && error.status === 401)) {
+      session.needsAuth?.()
+      return new NeedsAuthError({ server, message: "MCP authorization is no longer valid" })
+    }
     if (!(error instanceof SdkHttpError) || session.transport?.sessionId === undefined) return new Error(explain(error))
     const expired =
       error.status === 404 ||
@@ -438,6 +448,9 @@ export const connect = Effect.fnUntraced(function* (
       onClose: (callback) => {
         client.onclose = () => callback(lastError ? `Connection closed: ${lastError}` : "Connection closed")
       },
+      onNeedsAuth: (callback) => {
+        session.needsAuth = callback
+      },
       onSessionExpired: (callback) => {
         session.expired = callback
       },
@@ -455,7 +468,11 @@ export const connect = Effect.fnUntraced(function* (
   }
 
   const error = Cause.squash(exit.cause)
-  if (error instanceof UnauthorizedError) return yield* new NeedsAuthError({ server, message: error.message })
+  if (
+    error instanceof UnauthorizedError ||
+    (error instanceof SdkHttpError && (error.status === 401 || error.status === 403))
+  )
+    return yield* new NeedsAuthError({ server, message: "MCP authorization was rejected" })
   if (error instanceof UnsupportedProtocolVersionError)
     return yield* new ConnectError({
       server,

@@ -36,8 +36,6 @@ skills=(
     verification-before-completion
     writing-plans
     writing-skills
-    opened-api
-    opened-init
 )
 
 for skill in "${skills[@]}"; do
@@ -52,12 +50,13 @@ printf '%s\n' '#!/bin/sh' >"$dist_dir/opencode"
 chmod 0755 "$dist_dir/opencode"
 
 for skill in "${skills[@]}"; do
-    if [[ "$skill" == opened-api || "$skill" == opened-init ]]; then
-        cp -R "$repository/packages/cli/skills/$skill" "$dist_dir/skills/$skill"
-    else
-        mkdir -p "$dist_dir/skills/$skill"
-        printf '%s\n' "---" "name: $skill" "description: bundled test skill" "---" >"$dist_dir/skills/$skill/SKILL.md"
-    fi
+    mkdir -p "$dist_dir/skills/$skill"
+    printf '%s\n' "---" "name: $skill" "description: bundled test skill" "---" >"$dist_dir/skills/$skill/SKILL.md"
+done
+
+for skill in opened-api opened-init; do
+    mkdir -p "$dist_dir/skills/$skill"
+    printf '%s\n' "---" "name: $skill" "description: retired OpenEd skill fixture" "---" >"$dist_dir/skills/$skill/SKILL.md"
 done
 
 fake_start="$work_dir/npx.started"
@@ -68,7 +67,7 @@ printf '%s\n' \
     'printf "%s\n" "$*" >>"$FAKE_LOG"' \
     'touch "$FAKE_START"' \
     'case "$*" in *anthropics/skills*) sleep 2 ;; esac' \
-    'case "$*" in *yarp-technologies/opened-skill*) touch "$FAKE_DONE" ;; esac' \
+    'case "$*" in *obra/superpowers*) touch "$FAKE_DONE" ;; esac' \
     >"$fake_bin/npx"
 chmod 0755 "$fake_bin/npx"
 
@@ -93,7 +92,10 @@ done
 test -f "$fake_done"
 
 grep -Fq -- 'writing-skills' "$fake_log"
-grep -F -- 'yarp-technologies/opened-skill' "$fake_log" | grep -Fq -- '--global --yes --agent opencode --skill opened-api opened-init'
+if grep -Fq -- 'yarp-technologies/opened-skill' "$fake_log"; then
+    printf '%s\n' 'install-skills: retired OpenEd skills were requested' >&2
+    exit 1
+fi
 if grep -Eq -- 'claude-api|slack-gif-creator|theme-factory' "$fake_log"; then
     printf '%s\n' 'install-skills: excluded skills were requested' >&2
     exit 1
@@ -105,17 +107,22 @@ HOME="$bundle_home" PATH="$fake_bin:/usr/bin:/bin" SHELL=/bin/bash \
     bash "$repository/install" --binary "$dist_dir/opencode"
 
 for _ in $(seq 1 1000); do
-    test -f "$bundle_home/.agents/skills/opened-init/scripts/opened-init.mjs" && break
+    installed=1
+    for skill in "${skills[@]}"; do
+        if ! test -f "$bundle_home/.agents/skills/$skill/SKILL.md"; then
+            installed=0
+            break
+        fi
+    done
+    test "$installed" = 1 && break
     sleep 0.01
 done
-test -f "$bundle_home/.agents/skills/opened-init/scripts/opened-init.mjs"
 
 for skill in "${skills[@]}"; do
     test -f "$bundle_home/.agents/skills/$skill/SKILL.md"
 done
-test -f "$bundle_home/.agents/skills/opened-api/references/api.md"
-test -f "$bundle_home/.agents/skills/opened-api/scripts/opened-init.mjs"
-test -f "$bundle_home/.agents/skills/opened-init/scripts/opened-init.mjs"
+test ! -e "$bundle_home/.agents/skills/opened-api"
+test ! -e "$bundle_home/.agents/skills/opened-init"
 
 if test -e "$bundle_home/.agents/skills/claude-api" ||
     test -e "$bundle_home/.agents/skills/slack-gif-creator" ||

@@ -9,6 +9,7 @@ source_dir="$work_dir/source"
 fake_bin="$work_dir/fake-bin"
 prefix="$work_dir/prefix"
 mkdir -p "$source_dir/bin" "$source_dir/script" "$source_dir/packages/cli/skills" "$fake_bin" "$work_dir/home"
+cp -R "$repository/packages/cli/skills/." "$source_dir/packages/cli/skills/"
 cp "$repository/package.json" "$source_dir/package.json"
 cp "$repository/bun.lock" "$source_dir/bun.lock"
 cp "$repository/.gitignore" "$source_dir/.gitignore"
@@ -19,7 +20,6 @@ fi
 if test -f "$repository/bin/edharness.cjs"; then
     cp "$repository/bin/edharness.cjs" "$source_dir/bin/"
 fi
-cp -R "$repository/packages/cli/skills/opened-api" "$repository/packages/cli/skills/opened-init" "$source_dir/packages/cli/skills/"
 
 cat > "$fake_bin/bun" <<'EOF'
 #!/usr/bin/env bash
@@ -85,8 +85,9 @@ expected_skills="$prefix/lib/node_modules/edharness/bin/skills"
 [[ "$output" == *'build=first'* ]]
 [[ "$output" == *"skills=$expected_skills"* ]]
 [[ "$output" == *'updates=1'* ]]
-test -f "$expected_skills/opened-api/SKILL.md"
-test -f "$expected_skills/opened-init/SKILL.md"
+test -f "$expected_skills/brainstorming/SKILL.md"
+test ! -e "$expected_skills/opened-api"
+test ! -e "$expected_skills/opened-init"
 
 output=$(HOME="$work_dir/home" OPENCODE_BUNDLED_SKILLS="$work_dir/custom" "$prefix/bin/edharness" check)
 [[ "$output" == *"skills=$work_dir/custom"* ]]

@@ -1236,7 +1236,7 @@ export function toolInlineInfo(part: SessionMessageAssistantTool, directory?: st
 }
 
 export function toolScroll(phase: ToolPhase, ctx: ToolFrame): string {
-  const draw = rule(ctx.name)?.scroll?.[phase]
+  const draw = rule(canonicalToolName(ctx.name))?.scroll?.[phase]
   try {
     if (draw) {
       return draw(props(ctx))

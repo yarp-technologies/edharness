@@ -55,7 +55,7 @@ edharness
 The installation builds EdHarness from the selected Git revision, downloading the project's pinned Bun version if
 necessary. It requires network access and several gigabytes of free disk space, and can take several minutes. npm
 lifecycle scripts must be enabled. `--install-links` ensures npm packages the Git checkout correctly. The CLI includes
-the default skills, including `opened-api` and `opened-init`. Re-run the installation command to update; upstream
+the default skills. Re-run the installation command to update; upstream
 OpenCode automatic updates are disabled for this installation. npm 10 can fail when reinstalling a Git package with
 `ENOTEMPTY`; use npm 11.19 or newer for updates.
 

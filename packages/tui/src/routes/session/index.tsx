@@ -1834,7 +1834,7 @@ function TurnTokenToolCalls(props: { tools: SessionMessageAssistantTool[] }) {
           {(tool) => (
             <box flexDirection="row">
               <text width={nameWidth()} flexShrink={0} fg={theme.text.muted} attributes={TextAttributes.BOLD}>
-                {tool.name}
+                {canonicalToolName(tool.name) === "opened_api" ? "OpenEd account" : tool.name}
               </text>
               <text fg={theme.text.muted} attributes={TextAttributes.DIM} wrapMode="word" flexGrow={1} minWidth={0}>
                 {turnTokenToolSummary(tool)}
@@ -2714,7 +2714,7 @@ type ToolProps = {
 }
 function GenericTool(props: ToolProps) {
   const theme = useTheme()
-  const hideDetails = props.tool === "opened_api"
+  const hideDetails = canonicalToolName(props.tool) === "opened_api"
   const output = createMemo(() => (hideDetails ? "" : stripAnsi(props.output?.trim() ?? "")))
   const input = createMemo(() => (hideDetails ? [] : Object.entries(props.input)))
   const [expanded, setExpanded] = createSignal(false)
@@ -2769,7 +2769,7 @@ function GenericTool(props: ToolProps) {
 }
 
 export function genericToolSummary(tool: string, input: Record<string, unknown>) {
-  if (tool === "opened_api") return "OpenEd account"
+  if (canonicalToolName(tool) === "opened_api") return "OpenEd account"
   const args = primitiveInputSummary(input).replace(/\s+/g, " ")
   return `${tool}${args ? ` ${args}` : ""}`
 }

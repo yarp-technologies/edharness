@@ -3,6 +3,32 @@ import { normalizeTool, toolInlineInfo, toolOutputText, toolPath, toolScroll } f
 import { canonicalToolPart } from "./fixture/tool-part"
 
 describe("Mini tool presentation", () => {
+  test("keeps namespaced OpenEd MCP tool details private", () => {
+    const part = canonicalToolPart("opened_roadmap_lookup", {
+      status: "completed",
+      input: { roadmap_id: "private-roadmap" },
+      metadata: {},
+      content: [{ type: "text", text: "private roadmap contents" }],
+    })
+
+    expect(toolInlineInfo(part).title).toBe("OpenEd account")
+    expect(toolOutputText("opened_roadmap_lookup", [{ type: "text", text: "private roadmap contents" }])).toBe("")
+    expect(
+      toolScroll("start", {
+        directory: "/work/project",
+        raw: "",
+        name: "opened_roadmap_lookup",
+        input: { roadmap_id: "private-roadmap" },
+        meta: {},
+        state: {},
+        status: "completed",
+        error: "",
+        output: "private roadmap contents",
+        time: {},
+      }),
+    ).toBe("◈ Checking your OpenEd account")
+  })
+
   test("uses V2 shell output without the model-facing status", () => {
     expect(
       toolOutputText("shell", [

@@ -11,9 +11,9 @@ import { Model } from "../../model.js"
 import { fromServerID } from "../../opened-model.js"
 import { Provider } from "../../provider.js"
 import { configuredOpenedURL, openedOrigin } from "../../opened.js"
-import { OpenedApiTool } from "../../tool/plugin/opened-api.js"
 import { WellKnown } from "../../wellknown.js"
 import type { PluginInternal } from "../internal.js"
+import * as OpenedMcp from "./opened-mcp.js"
 
 const providerID = Provider.ID.make("opened")
 const integrationID = Integration.ID.make(providerID)
@@ -123,6 +123,7 @@ export const OpenedPlugin = define({
     const http = yield* HttpClient.HttpClient
     const bus = yield* Bus.Service
     const llmBaseURL = openedLLMBaseURL()
+    const updateMcp = yield* OpenedMcp.install({ ctx })
     const loading = Semaphore.makeUnsafe(1)
     type ActiveConnection = Effect.Success<ReturnType<typeof ctx.integration.connection.active>>
     const loaded: { models: readonly NonNullable<ReturnType<typeof fromServerID>>[]; connection?: ActiveConnection } = {
@@ -133,7 +134,6 @@ export const OpenedPlugin = define({
       integrations.update(integrationID, (integration) => (integration.name = "OpenEd"))
       integrations.method.update(oauth(http))
     })
-    yield* OpenedApiTool.Plugin.effect(ctx)
     yield* ctx.provider.transform((providers) => {
       providers.update(providerID, (provider) => {
         provider.name = "OpenEd"
@@ -174,6 +174,7 @@ export const OpenedPlugin = define({
         : undefined
       const scope = credential?.type === "oauth" ? credential.metadata?.scope : undefined
       if (!connection || credential?.type !== "oauth" || typeof scope !== "string" || !hasScope(scope, "llm:use")) {
+        yield* updateMcp(undefined)
         if (connection?.type === "credential" && credential?.type === "oauth")
           yield* ctx.integration.connection.status({
             integrationID,
@@ -188,6 +189,7 @@ export const OpenedPlugin = define({
         return
       }
 
+      yield* updateMcp(credential.access)
       const response = yield* http
         .execute(
           HttpClientRequest.get(`${llmBaseURL}/models`).pipe(
@@ -202,6 +204,7 @@ export const OpenedPlugin = define({
         )
       if (!response) return
       if (response.status === 401 || response.status === 403) {
+        yield* updateMcp(undefined)
         yield* ctx.integration.connection.status({
           integrationID,
           connection,
@@ -238,6 +241,17 @@ export const OpenedPlugin = define({
       loaded.models = next
       loaded.connection = connection
       yield* ctx.provider.reload()
+    })
+
+    yield* OpenedMcp.watchUnauthorized({
+      ctx,
+      clear: () => updateMcp(undefined),
+      invalidate: () =>
+        Effect.gen(function* () {
+          loaded.models = []
+          loaded.connection = undefined
+          yield* ctx.provider.reload()
+        }),
     })
 
     yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(

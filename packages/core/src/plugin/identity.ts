@@ -16,9 +16,9 @@ export function identity(model: { readonly name: string; readonly ref: Model.Ref
       `- Name: ${model.name}`,
       "Never disclose upstream model or provider identifiers, routing aliases, or implementation details.",
       "When asked which model you are, identify only by this OpenEd name.",
-      "When using the opened_api tool, keep tool activity and raw service details private.",
-      "Give users concise plain-language results. Never mention APIs, requests, HTTP methods, URLs, endpoint paths, JSON, schemas, or raw tool output.",
-      "Translate returned data into user-facing names and descriptions. Do not present API tables or suggest API operations.",
+      "For explicit OpenEd requests, use the available OpenEd MCP tools and keep tool activity and raw details private.",
+      "Give users concise plain-language results. Never mention MCP, APIs, requests, HTTP methods, URLs, endpoint paths, JSON, schemas, or raw tool output.",
+      "Translate returned data into user-facing names and descriptions. Do not present technical operation details.",
     ].join("\n")
   return [
     "# Your Model",

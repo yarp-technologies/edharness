@@ -1,23 +1,22 @@
 import { describe, expect } from "bun:test"
+import { createMcpHandler, Server } from "@modelcontextprotocol/server"
 import { Deferred, Duration, Effect, Schedule, Schema } from "effect"
 import { TestClock, TestConsole } from "effect/testing"
 import { Credential } from "@opencode/core/credential"
-import { Agent } from "@opencode/core/agent"
 import { Integration } from "@opencode/core/integration"
+import { Mcp } from "@opencode/core/mcp/index"
 import { Model } from "@opencode/core/model"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
-import { Session } from "@opencode/core/session"
-import { SessionMessage } from "@opencode/core/session/message"
 import { Tool } from "@opencode/core/tool"
 import { OpenedCatalogFilter, OpenedPlugin } from "@opencode/core/plugin/provider/opened"
 import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { Provider } from "@opencode/core/provider"
 import { WellKnown } from "@opencode/core/wellknown"
 import { testEffect } from "../lib/effect"
-import { PluginTestLayer } from "./fixture"
+import { makePluginTestLayer } from "./fixture"
 
-const it = testEffect(PluginTestLayer)
+const it = testEffect(makePluginTestLayer(undefined, undefined, true))
 const providerID = Provider.ID.make("opened")
 const integrationID = Integration.ID.make("opened")
 const methodID = Integration.MethodID.make("opened-browser")
@@ -33,7 +32,9 @@ type Exchange = typeof ExchangeBody.Type
 type Remote = {
   exchanges: Array<{ url: string; headers: Record<string, string>; body: Exchange }>
   modelRequests: Array<{ url: string; headers: Record<string, string> }>
-  apiRequests: Array<{ url: string; method: string; headers: Record<string, string> }>
+  mcpRequests: Array<{ url: string; method: string; authorization: string | null }>
+  mcpToolCalls: string[]
+  mcpStatus?: number
   token: { access_token: string; token_type: string; scope: string }
   exchangeStatus: number
   modelIDs: string[]
@@ -60,7 +61,8 @@ const status = Effect.fn(function* (attempt: Integration.Attempt) {
 const remote = (): Remote => ({
   exchanges: [],
   modelRequests: [],
-  apiRequests: [],
+  mcpRequests: [],
+  mcpToolCalls: [],
   token: { access_token: "test-opened-access-secret", token_type: "Bearer", scope: "llm:use roadmaps:read" },
   exchangeStatus: 200,
   modelIDs: [
@@ -73,6 +75,28 @@ const remote = (): Remote => ({
 })
 
 function openedServer(state: Remote) {
+  const mcp = createMcpHandler(() => {
+    const server = new Server(
+      { name: "loom", title: "Loom", version: "1.0.0" },
+      { capabilities: { tools: {} } },
+    )
+    server.setRequestHandler("tools/list", () =>
+      Promise.resolve({
+        tools: [
+          {
+            name: "roadmap_lookup",
+            description: "Look up a roadmap",
+            inputSchema: { type: "object" as const, properties: {} },
+          },
+        ],
+      }),
+    )
+    server.setRequestHandler("tools/call", (request) => {
+      state.mcpToolCalls.push(request.params.name)
+      return Promise.resolve({ content: [{ type: "text", text: '{"id":"roadmap-from-opened"}' }] })
+    })
+    return server
+  }, { legacy: "reject" })
   return Effect.acquireRelease(
     Effect.sync(() =>
       Bun.serve({
@@ -94,9 +118,14 @@ function openedServer(state: Remote) {
             state.onModels?.()
             return Response.json({ data: state.modelIDs.map((id) => ({ id })) })
           }
-          if (url.pathname === "/api/roadmaps" && request.method === "GET") {
-            state.apiRequests.push({ url: request.url, method: request.method, headers })
-            return Response.json([{ id: "roadmap-from-opened" }])
+          if (url.pathname === "/api/mcp") {
+            state.mcpRequests.push({
+              url: request.url,
+              method: request.method,
+              authorization: request.headers.get("authorization"),
+            })
+            if (state.mcpStatus !== undefined) return new Response(null, { status: state.mcpStatus })
+            return mcp.fetch(request)
           }
           return new Response("Not found", { status: 404 })
         },
@@ -133,21 +162,12 @@ function callbackURL(attempt: Integration.Attempt) {
   return new URL(redirectURI)
 }
 
-function openedAPICall(snapshot: Tool.Snapshot, path: string, id: string) {
-  return snapshot.execute({
-    sessionID: Session.ID.make("ses_opened_api"),
-    agent: Agent.ID.make("build"),
-    messageID: SessionMessage.ID.make("msg_opened_api"),
-    call: { type: "tool-call", id, name: "opened_api", input: { method: "GET", path } },
-  })
-}
-
 describe("OpenEd provider", () => {
-  it.effect("registers the authenticated OpenEd API tool for the bundled skill", () =>
+  it.effect("does not register the legacy OpenEd API tool", () =>
     Effect.gen(function* () {
       yield* addPlugin()
       const tools = yield* Tool.Service
-      expect((yield* tools.list()).some((tool) => tool.name === "opened_api")).toBe(true)
+      expect((yield* tools.list()).some((tool) => tool.name === "opened_api")).toBe(false)
     }),
   )
 
@@ -196,18 +216,6 @@ describe("OpenEd provider", () => {
     }),
   )
 
-  it.effect("requires an active OpenEd authorization and blocks administrative API routes", () =>
-    Effect.gen(function* () {
-      yield* addPlugin()
-      const tools = yield* Tool.Service
-      const snapshot = yield* tools.snapshot()
-      const missing = yield* openedAPICall(snapshot, "/roadmaps", "call_opened_api_missing").pipe(Effect.flip)
-      expect(missing.message).toContain("Connect OpenEd in EdHarness")
-      const restricted = yield* openedAPICall(snapshot, "/admin/users", "call_opened_api_admin").pipe(Effect.flip)
-      expect(restricted.message).toBe("Invalid OpenEd API path")
-    }),
-  )
-
   it.live("authorizes with Loom, exchanges once, shows scope, and supports disconnect and reconnect", () =>
     Effect.gen(function* () {
       const state = remote()
@@ -221,6 +229,7 @@ describe("OpenEd provider", () => {
           const integrations = yield* Integration.Service
           const credentials = yield* Credential.Service
           const models = yield* Model.Service
+          const mcp = yield* Mcp.Service
           const attempt = yield* integrations.oauth.connect({ integrationID, methodID })
           const authorization = new URL(attempt.url)
           const redirectURI = authorization.searchParams.get("redirect_uri")
@@ -318,21 +327,67 @@ describe("OpenEd provider", () => {
             Model.ID.make("image"),
           ])
 
-          const toolService = yield* Tool.Service
-          const toolSnapshot = yield* toolService.snapshot()
-          const apiResult = yield* openedAPICall(toolSnapshot, "/roadmaps", "call_opened_api")
-          expect(apiResult.output).toEqual({
-            status: 200,
-            contentType: "application/json;charset=utf-8",
-            body: '[{"id":"roadmap-from-opened"}]',
+          const mcpServers = yield* mcp.servers().pipe(
+            Effect.repeat({
+              until: (servers) =>
+                servers.some((item) => item.name === "opened" && item.status.status !== "pending"),
+              schedule: Schedule.spaced("10 millis"),
+            }),
+            Effect.timeout("3 seconds"),
+            Effect.catch(() =>
+              mcp.servers().pipe(
+                Effect.flatMap((servers) =>
+                  Effect.fail(
+                    new Error(
+                      `Loom MCP did not register; requests to the endpoint: ${state.mcpRequests.length}; servers: ${JSON.stringify(servers)}`,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+          expect(mcpServers.find((item) => item.name === "opened")?.status.status).toBe("connected")
+          const publicTools = yield* mcp.tools().pipe(
+            Effect.repeat({
+              until: (tools) => tools.some((tool) => tool.server === "opened" && tool.name === "roadmap_lookup"),
+              schedule: Schedule.spaced("10 millis"),
+            }),
+            Effect.timeout("3 seconds"),
+          )
+          expect(publicTools.some((tool) => tool.server === "opened" && tool.name === "roadmap_lookup")).toBe(true)
+          const mcpResult = yield* mcp.callTool({ server: "opened", name: "roadmap_lookup" })
+          expect(mcpResult.content).toEqual([{ type: "text", text: '{"id":"roadmap-from-opened"}' }])
+          expect(state.mcpToolCalls).toEqual(["roadmap_lookup"])
+          expect(state.mcpRequests.length).toBeGreaterThan(0)
+          expect(
+            state.mcpRequests.every(
+              (request) =>
+                request.url === `${server.url.origin}/api/mcp` &&
+                request.method === "POST" &&
+                request.authorization === `Bearer ${state.token.access_token}`,
+            ),
+          ).toBe(true)
+          expect(JSON.stringify(yield* mcp.servers())).not.toContain(state.token.access_token)
+
+          state.mcpStatus = 403
+          const forbidden = yield* mcp.callTool({ server: "opened", name: "roadmap_lookup" }).pipe(Effect.flip)
+          expect(forbidden.message).toContain("HTTP 403")
+          expect((yield* mcp.servers()).find((item) => item.name === "opened")?.status.status).toBe("connected")
+
+          state.mcpStatus = 401
+          const unauthorized = yield* mcp.callTool({ server: "opened", name: "roadmap_lookup" }).pipe(Effect.flip)
+          expect(unauthorized.message).toContain("authorization is no longer valid")
+          const disconnected = yield* mcp.servers().pipe(
+            Effect.repeat({
+              until: (servers) => !servers.some((item) => item.name === "opened"),
+              schedule: Schedule.spaced("10 millis"),
+            }),
+            Effect.timeout("3 seconds"),
+          )
+          expect(disconnected.some((item) => item.name === "opened")).toBe(false)
+          expect((yield* integrations.get(integrationID))?.connections[0]?.status).toMatchObject({
+            status: "needs_auth",
           })
-          expect(state.apiRequests).toHaveLength(1)
-          expect(state.apiRequests[0]).toMatchObject({
-            url: `${server.url.origin}/api/roadmaps`,
-            method: "GET",
-            headers: { authorization: `Bearer ${state.token.access_token}` },
-          })
-          expect(JSON.stringify(apiResult)).not.toContain(state.token.access_token)
           const callbackClosed = yield* Effect.promise(() =>
             fetch(callback, { headers: { Connection: "close" } })
               .then(() => false)

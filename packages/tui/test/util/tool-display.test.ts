@@ -7,12 +7,13 @@ import {
   webSearchProviderLabel,
 } from "../../src/util/tool-display"
 
-test("normalizes shared tool primitives", () => {
-  expect(["bash", "task", "apply_patch", "plugin_tool"].map(canonicalToolName)).toEqual([
+test("normalizes shared and private tool names", () => {
+  expect(["bash", "task", "apply_patch", "plugin_tool", "opened_roadmap_lookup"].map(canonicalToolName)).toEqual([
     "shell",
     "subagent",
     "patch",
     "plugin_tool",
+    "opened_api",
   ])
   expect([finiteNumber(-1.5), finiteNumber(Number.NaN), finiteNumber("1")]).toEqual([-1.5, undefined, undefined])
   expect(primitiveInputSummary({ command: "pwd", count: 2, nested: {} })).toBe("[command=pwd, count=2]")
