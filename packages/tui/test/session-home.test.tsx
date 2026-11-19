@@ -123,7 +123,7 @@ test.each([
     const maximum = () => Math.max(0, scroll.scrollHeight - scroll.viewport.height)
     if (mode === "scrolled" || mode === "cancel" || mode === "settling-scrolled") {
       setup.mockInput.pressKey("F6")
-      await setup.waitForFrame((frame) => frame.includes("Jump to latest"))
+      await setup.waitForFrame((frame) => frame.includes("Перейти к последнему"))
     }
     if (mode === "page-cancel" || mode.startsWith("prepend")) {
       scroll.scrollTo(0)
@@ -249,7 +249,9 @@ test.each([
       expect(mounted().map((child) => child.id)).toEqual(messages.slice(0, 60).map((message) => message.id))
       expect(scroll.scrollTop).toBeGreaterThan(0)
       setup.mockInput.pressKey("END")
-      await setup.waitForFrame((frame) => frame.includes("History message 0399") && !frame.includes("Jump to latest"))
+      await setup.waitForFrame(
+        (frame) => frame.includes("History message 0399") && !frame.includes("Перейти к последнему"),
+      )
       await setup.waitFor(() => scroll.scrollTop === maximum())
       if (mode === "settling-reveal") {
         scroll.scrollTo(0)
@@ -311,7 +313,7 @@ test.each([
       if (mode === "up-cancel") setup.mockInput.pressKey("F6")
       if (mode === "mouse-cancel") await setup.mockMouse.scroll(scroll.viewport.x + 2, scroll.viewport.y + 2, "up")
       await setup.waitForFrame(
-        (frame) => frame.includes("Jump to latest") && !frame.includes("Loading session history"),
+        (frame) => frame.includes("Перейти к последнему") && !frame.includes("Loading session history"),
       )
       await setup.waitForVisualIdle()
       const cancelled = visible()
@@ -329,7 +331,7 @@ test.each([
         (frame) =>
           frame.includes("History message 0399") &&
           !frame.includes("Loading session history") &&
-          !frame.includes("Jump to latest"),
+          !frame.includes("Перейти к последнему"),
       )
       await setup.waitFor(() => scroll.scrollTop === maximum())
       expect(scroll.scrollTop).toBe(maximum())
@@ -379,7 +381,9 @@ test.each([
     )
 
     setup.mockInput.pressKey("END")
-    await setup.waitForFrame((frame) => frame.includes("History message 0399") && !frame.includes("Jump to latest"))
+    await setup.waitForFrame(
+      (frame) => frame.includes("History message 0399") && !frame.includes("Перейти к последнему"),
+    )
     await setup.waitFor(() => scroll.scrollTop === maximum())
     expect(scroll.scrollTop).toBe(maximum())
     setup.mockInput.pressKey("HOME")

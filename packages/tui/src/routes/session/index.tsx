@@ -1550,7 +1550,7 @@ export function Session(props: {
                   <text
                     fg={latestHovered() ? theme.text.action.secondary.hovered : theme.text.action.secondary.base}
                   >
-                    Jump to latest ↓
+                    {Locale.text("Jump to latest")} ↓
                   </text>
                 </box>
               </Show>

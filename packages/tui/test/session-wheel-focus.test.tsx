@@ -121,7 +121,7 @@ test
     await setup.waitForVisualIdle()
     expect(scroll.scrollTop).toBeLessThan(focused)
     expect(setup.renderer.currentFocusedRenderable).toBe(terminal)
-    expect(setup.captureCharFrame()).toContain("Jump to latest")
+    expect(setup.captureCharFrame()).toContain("Перейти к последнему")
     await setup.mockMouse.scroll(scroll.viewport.x + 2, scroll.viewport.y + 2, "down")
     await setup.waitForVisualIdle()
     expect(scroll.scrollTop).toBe(focused)

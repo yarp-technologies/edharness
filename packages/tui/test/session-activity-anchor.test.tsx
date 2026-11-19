@@ -170,7 +170,7 @@ test("a low activity summary that ends the transcript opens like v2 at the botto
       expect(row).toBeLessThan(expand.row)
       expect(expanded.slice(row + 1).join("\n")).toContain("Команда выполнена")
       expect(expanded.join("\n")).not.toContain("running step 0 output")
-      expect(expanded.join("\n")).not.toContain("Jump to latest")
+      expect(expanded.join("\n")).not.toContain("Перейти к последнему")
 
       const collapse = await toggle(setup, label)
       expect(collapse.frames.at(-1)).toBe(expand.row)

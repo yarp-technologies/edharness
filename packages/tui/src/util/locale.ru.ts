@@ -333,6 +333,7 @@ const dict: Readonly<Record<string, string>> = {
   Error: "Ошибка",
   "No preview": "Предпросмотр недоступен",
   "Loading session history…": "Загрузка истории сессии…",
+  "Jump to latest": "Перейти к последнему",
   interrupted: "прервано",
   "↳ Moved to ": "↳ Перемещено в ",
   "Instructions updated": "Инструкции обновлены",
