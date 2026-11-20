@@ -3,6 +3,7 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { usePlugin } from "../../plugin/context"
 import { Slot } from "../../plugin/render"
+import { Locale } from "../../util/locale"
 
 export function homeFooterVisibility(width: number) {
   return {
@@ -96,7 +97,9 @@ function View(props: { context: Plugin.Context }) {
         <box flexGrow={1} />
         <Show when={visibility().version}>
           <box flexShrink={0}>
-            <text fg={props.context.theme.text.muted}>{props.context.app.version}</text>
+            <text fg={props.context.theme.text.muted}>
+              {props.context.app.version === "local" ? Locale.text("Local build") : props.context.app.version}
+            </text>
           </box>
         </Show>
       </box>
