@@ -576,7 +576,10 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
       })
     writeSessionOutput(
       { footer: input.footer, trace: input.trace },
-      { commits, updates: patch ? [{ type: "stream.patch", patch }] : undefined },
+      {
+        commits: commits.filter((commit) => commit.kind !== "reasoning"),
+        updates: patch ? [{ type: "stream.patch", patch }] : undefined,
+      },
     )
   }
 
@@ -1183,6 +1186,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
       return
     }
     if (event.type === "session.text.started") {
+      write([], { phase: "running", status: "running" })
       return
     }
     if (event.type === "session.text.delta") {
@@ -1227,6 +1231,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
       return
     }
     if (event.type === "session.reasoning.started") {
+      write([], { phase: "running", status: "thinking" })
       return
     }
     if (event.type === "session.reasoning.delta") {
@@ -1245,7 +1250,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
             messageID: event.data.assistantMessageID,
             partID: update.partID,
           },
-        ])
+        ], { phase: "running", status: "thinking" })
       return
     }
     if (event.type === "session.reasoning.ended") {
@@ -1253,20 +1258,25 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
         fragmentRef(event.data.assistantMessageID, "reasoning", event.data.ordinal),
         event.data.text,
       )
-      if (input.thinking && event.data.text.length > update.previous.length)
-        write([
-          {
-            kind: "reasoning",
-            source: "reasoning",
-            text: update.previous ? event.data.text.slice(update.previous.length) : `Thinking: ${event.data.text}`,
-            phase: "progress",
-            messageID: event.data.assistantMessageID,
-            partID: update.partID,
-          },
-        ])
+      write(
+        input.thinking && event.data.text.length > update.previous.length
+          ? [
+              {
+                kind: "reasoning",
+                source: "reasoning",
+                text: update.previous ? event.data.text.slice(update.previous.length) : `Thinking: ${event.data.text}`,
+                phase: "progress",
+                messageID: event.data.assistantMessageID,
+                partID: update.partID,
+              },
+            ]
+          : [],
+        { phase: "running", status: "running" },
+      )
       return
     }
     if (event.type === "session.tool.input.started") {
+      write([], { phase: "running", status: "running" })
       renderTool(event.data.assistantMessageID, {
         type: "tool",
         id: event.data.id,
@@ -1718,11 +1728,12 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
             )
             if (restored.type === "covered") continue
             if (restored.type === "append") {
-              if (restored.suffix)
+              if (restored.suffix && row.commit.kind !== "reasoning")
                 input.footer.append(restored.suffix === text ? row.commit : { ...row.commit, text: restored.suffix })
               continue
             }
           }
+          if (row.commit.kind === "reasoning") continue
           if (row.commit.kind === "error" && row.commit.messageID) {
             if (state.errors.has(row.commit.messageID)) continue
             state.errors.add(row.commit.messageID)

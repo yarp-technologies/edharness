@@ -414,6 +414,7 @@ export function RunFooterView(props: RunFooterViewProps) {
     if (notice()) return notice()
     if (!footerDetails()) return shell() ? "Shell" : ""
     if (busy()) {
+      if (stateStatus() === "thinking") return "Думаю…"
       if (stateStatus() === "reconnecting") return "reconnecting"
       return interruptLabel() ? `${interruptLabel()} stop` : "Running"
     }

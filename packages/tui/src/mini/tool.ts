@@ -489,11 +489,10 @@ function runInvalid(p: ToolProps): ToolInline {
   }
 }
 
-function runOpenedAPI(p: ToolProps): ToolInline {
-  const failed = p.frame.status === "error"
+function runOpenedAPI(_: ToolProps): ToolInline {
   return {
-    icon: failed ? "✗" : "◈",
-    title: failed ? "OpenEd action failed" : "OpenEd account",
+    icon: "◈",
+    title: "OpenEd account",
   }
 }
 
@@ -501,8 +500,8 @@ function scrollOpenedAPIStart(_: ToolProps): string {
   return "◈ Checking your OpenEd account"
 }
 
-function scrollOpenedAPIFinal(p: ToolProps): string {
-  return p.frame.status === "error" ? "Could not complete the OpenEd action." : ""
+function scrollOpenedAPIFinal(_: ToolProps): string {
+  return ""
 }
 
 function runBatch(p: ToolProps): ToolInline {

@@ -2723,19 +2723,19 @@ function GenericTool(props: ToolProps) {
 
   return (
     <>
-      <InlineTool
-        icon={props.part.state.status === "error" ? "✗" : "✓"}
-        complete={props.part.state.status === "completed"}
-        pending={hideDetails ? "OpenEd account" : props.tool}
-        spinner={loading()}
-        part={props.part}
-        onClick={expandable() ? () => setExpanded((value) => !value) : undefined}
-        onErrorClick={hideDetails ? () => undefined : undefined}
-      >
-        {hideDetails && props.part.state.status === "error"
-          ? "Could not complete the OpenEd action."
-          : genericToolSummary(props.tool, props.input)}
-      </InlineTool>
+      <Show when={!hideDetails || props.part.state.status !== "error"}>
+        <InlineTool
+          icon={props.part.state.status === "error" ? "✗" : "✓"}
+          complete={props.part.state.status === "completed"}
+          pending={hideDetails ? "OpenEd account" : props.tool}
+          spinner={loading()}
+          part={props.part}
+          onClick={expandable() ? () => setExpanded((value) => !value) : undefined}
+          onErrorClick={hideDetails ? () => undefined : undefined}
+        >
+          {genericToolSummary(props.tool, props.input)}
+        </InlineTool>
+      </Show>
       <Show when={expanded()}>
         <box paddingLeft={3 + INLINE_TOOL_ICON_WIDTH}>
           <For each={input()}>

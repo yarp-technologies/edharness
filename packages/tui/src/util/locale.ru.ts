@@ -365,7 +365,6 @@ const dict: Readonly<Record<string, string>> = {
   Background: "В фоне",
   Notice: "Уведомление",
   Skill: "Навык",
-  "Could not complete the OpenEd action.": "Не удалось выполнить действие OpenEd.",
   "Permission required": "Требуется разрешение",
   "Session location unavailable": "Папка сессии недоступна",
   "Working directory": "Рабочая папка",
