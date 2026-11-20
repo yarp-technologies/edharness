@@ -1,5 +1,6 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { createMemo, Show } from "solid-js"
+import { Locale } from "../../util/locale"
 import { contextUsage } from "../../util/session"
 
 const money = new Intl.NumberFormat("en-US", {
@@ -21,20 +22,20 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
     <Show when={state() || cost() > 0}>
       <box>
         <text fg={theme.text.base}>
-          <b>Context</b>
+          <b>{Locale.text("Context")}</b>
         </text>
         <Show when={state()}>
           {(value) => (
             <>
-              <text fg={theme.text.muted}>{value().tokens.toLocaleString()} tokens</text>
+              <text fg={theme.text.muted}>{Locale.text(`${value().tokens.toLocaleString()} tokens`)}</text>
               <Show when={value().percent !== undefined}>
-                <text fg={theme.text.muted}>{value().percent}% used</text>
+                <text fg={theme.text.muted}>{Locale.text(`${value().percent}% used`)}</text>
               </Show>
             </>
           )}
         </Show>
         <Show when={cost() > 0}>
-          <text fg={theme.text.muted}>{money.format(cost())} spent</text>
+          <text fg={theme.text.muted}>{Locale.text(`${money.format(cost())} spent`)}</text>
         </Show>
       </box>
     </Show>

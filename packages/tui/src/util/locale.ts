@@ -21,6 +21,8 @@ const dynamicPatterns: readonly [RegExp, string][] = [
   [/^Switch to session in quick slot (\d+)$/, "Перейти к сессии в быстром слоте $1"],
   [/^Switch to tab (\d+)$/, "Перейти к вкладке $1"],
   [/^MCP server failed: (.+)$/, "Ошибка MCP-сервера: $1"],
+  [/^(\d+(?:\.\d+)?)% used$/, "Использовано $1%"],
+  [/^(\$[\d,.]+) spent$/, "Потрачено $1"],
   [/^Connect "(.+)" to use its tools\.$/, "Подключите «$1», чтобы использовать его инструменты."],
   [/^Session "(.+)" was deleted$/, "Сессия «$1» удалена"],
   [/^Switched agent to (.+)$/, "Выбран агент: $1"],
@@ -49,6 +51,19 @@ export function text(value: string): string {
 }
 
 function dynamicRussian(value: string): string | undefined {
+  const tokens = value.match(/^([\d,.\s\u00a0\u202f]+) tokens$/)
+  if (tokens) {
+    const count = Number(tokens[1].replace(/\D/g, ""))
+    const mod100 = count % 100
+    const mod10 = count % 10
+    const unit =
+      mod10 === 1 && mod100 !== 11
+        ? "токен"
+        : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+          ? "токена"
+          : "токенов"
+    return `${count.toLocaleString(locale())} ${unit}`
+  }
   const reverted = value.match(/^(\d+) messages? reverted$/)
   if (reverted) {
     const count = Number(reverted[1])

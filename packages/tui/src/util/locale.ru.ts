@@ -1,5 +1,7 @@
 const dict: Readonly<Record<string, string>> = {
   Build: "Разработка",
+  Context: "Контекст",
+  Connected: "Подключено",
   "Local build": "Локальная сборка",
   "Connect a provider": "Подключить провайдера",
   "No provider selected": "Провайдер не выбран",

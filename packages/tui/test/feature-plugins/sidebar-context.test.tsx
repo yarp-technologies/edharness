@@ -47,7 +47,7 @@ test("sidebar omits context before usage is available", async () => {
 
   try {
     await app.renderOnce()
-    expect(app.captureCharFrame()).not.toContain("Context")
+    expect(app.captureCharFrame()).not.toContain("Контекст")
     expect(app.captureCharFrame()).not.toContain("Not measured")
   } finally {
     app.renderer.destroy()
@@ -62,8 +62,8 @@ test("sidebar shows available context usage", async () => {
 
   try {
     await app.renderOnce()
-    expect(app.captureCharFrame()).toContain("Context")
-    expect(app.captureCharFrame()).toContain("1,234 tokens")
+    expect(app.captureCharFrame()).toContain("Контекст")
+    expect(app.captureCharFrame()).toContain("1\u00a0234 токена")
   } finally {
     app.renderer.destroy()
   }
