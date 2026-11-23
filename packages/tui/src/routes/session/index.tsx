@@ -125,6 +125,7 @@ import { SessionLocationMissing } from "./location-missing"
 import { isRecord } from "../../util/record"
 import { parseTodos } from "../../util/todo"
 import { createHistoryPrepend } from "./history"
+import { rowRepetitionCounts, SessionRowsView, useRowRepetitions } from "./repeated-tool-rows"
 import { context, use, type PendingAction } from "./render-context"
 import { INLINE_TOOL_ICON_WIDTH, InlineToolRow, ReasoningPart, TextPart, toolDisplay } from "./message-parts"
 import { defaultVerbosity, type GroupKind, type SessionEntry } from "./grouping/session"
@@ -406,19 +407,23 @@ export function Session(props: {
   // at the bottom the hidden span follows appends; leaving the bottom pins it to preserve the viewport.
   const [hiddenRows, setHiddenRows] = createSignal<number>()
   const [visibleRowsEnd, setVisibleRowsEnd] = createSignal<number>()
+  const repetitions = createMemo(() =>
+    rowRepetitionCounts(rows, (messageID) => data.session.message.get(route.sessionID, messageID)),
+  )
   const weights = createMemo(() =>
-    rows.map((row) =>
-      rowWeight(row, {
-        expanded: groupExpanded,
-        grouped: groupedKind,
-      }),
+    rows.map((row, index) =>
+      repetitions()[index] === 0
+        ? 0
+        : rowWeight(row, {
+            expanded: groupExpanded,
+            grouped: groupedKind,
+          }),
     ),
   )
   const hidden = createMemo(() =>
     Math.min(hiddenRows() ?? Infinity, rowsBefore(weights(), rows.length, TRANSCRIPT_TAIL_ROWS)),
   )
   const visibleEnd = createMemo(() => Math.max(hidden(), Math.min(visibleRowsEnd() ?? rows.length, rows.length)))
-  const visibleRows = createMemo(() => rows.slice(hidden(), visibleEnd()))
   const prependHistory = createHistoryPrepend({
     sessionID: () => route.sessionID,
     more: (id) => data.session.message.more(id),
@@ -1514,15 +1519,20 @@ export function Session(props: {
                   updateAwayFromBottom()
                 }}
               >
-                <For each={visibleRows()}>
-                  {(row, index) => (
+                <SessionRowsView
+                  rows={rows}
+                  start={hidden}
+                  end={visibleEnd}
+                  boundaries={boundaries}
+                  repetitions={repetitions}
+                  render={(row, boundaryID) => (
                     <SessionRowView
                       row={row}
                       message={(messageID) => data.session.message.get(route.sessionID, messageID)}
-                      boundaryID={boundaries()[index() + hidden()]}
+                      boundaryID={boundaryID}
                     />
                   )}
-                </For>
+                />
                 <BackgroundToolHint messages={messages()} />
                 <Show when={session()?.revert?.messageID}>
                   <RevertMessage
@@ -2714,6 +2724,7 @@ type ToolProps = {
 }
 function GenericTool(props: ToolProps) {
   const theme = useTheme()
+  const repetitions = useRowRepetitions()
   const hideDetails = canonicalToolName(props.tool) === "opened_api"
   const output = createMemo(() => (hideDetails ? "" : stripAnsi(props.output?.trim() ?? "")))
   const input = createMemo(() => (hideDetails ? [] : Object.entries(props.input)))
@@ -2734,6 +2745,7 @@ function GenericTool(props: ToolProps) {
           onErrorClick={hideDetails ? () => undefined : undefined}
         >
           {genericToolSummary(props.tool, props.input)}
+          {repetitions() > 1 ? ` ×${repetitions()}` : ""}
         </InlineTool>
       </Show>
       <Show when={expanded()}>
