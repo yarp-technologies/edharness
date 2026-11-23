@@ -69,7 +69,10 @@ jobs:
             name="$(node -p "require('./$package/package.json').name")"
             version="$(node -p "require('./$package/package.json').version")"
             if npm view "$name@$version" version >/dev/null 2>&1; then
-              echo "already published $name@$version"
+              local tarball
+              tarball="$(npm view "$name@$version" dist.tarball)"
+              curl --fail --silent --show-error --location --retry 20 --retry-delay 15 --retry-all-errors --range 0-0 "$tarball" --output /dev/null
+              echo "verified published $name@$version tarball is reachable"
               return
             fi
             local stages
@@ -94,9 +97,11 @@ jobs:
               })
             ' "$version"; then
               echo "already staged $name@$version"
+              echo "Approve $name@$version in npm, then rerun this workflow to verify its tarball download." >> "$GITHUB_STEP_SUMMARY"
               return
             fi
             npm stage publish "$package" --access public --provenance
+            echo "Approve $name@$version in npm, then rerun this workflow to verify its tarball download." >> "$GITHUB_STEP_SUMMARY"
           }
           for package in npm/dist/edharness-*; do
             publish_package "$package"
