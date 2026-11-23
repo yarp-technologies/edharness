@@ -51,9 +51,10 @@ Install [Node.js](https://nodejs.org/) and npm 11.19 or newer. After the first p
     edharness
 
 npm selects the prebuilt binary for the current operating system, CPU architecture, and Linux libc. The CLI includes
-the default skills. The npm distribution is not available until its first public release; maintainers publish it by
-creating an `edharness-v<version>` tag matching the root `package.json` version. The release workflow requires the
-GitHub repository secret `NPM_TOKEN`, with permission to publish the EdHarness npm packages.
+the default skills. The npm distribution is not available until its first public release. Maintainers can publish it by
+creating an `edharness-v<version>` tag matching the root `package.json` version, or by manually running the release
+workflow. It stages the npm packages; maintainers approve the staged versions in npm before they become available.
+The workflow requires the GitHub repository secret `NPM_TOKEN`, with write access to the EdHarness npm packages.
 
 ### Upstream OpenCode installation
 

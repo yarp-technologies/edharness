@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - edharness-v*
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,7 +23,6 @@ jobs:
         with:
           node-version: "24"
           registry-url: https://registry.npmjs.org
-          package-manager-cache: false
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
@@ -35,15 +35,21 @@ jobs:
       - name: Prepare release version
         shell: bash
         run: |
-          tag_version="$(printf '%s' "$GITHUB_REF_NAME" | sed 's/^edharness-v//')"
           package_version="$(node -p "require('./package.json').version")"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            tag_version="$package_version"
+          else
+            tag_version="${GITHUB_REF_NAME#edharness-v}"
+          fi
           if [[ "$tag_version" != "$package_version" ]]; then
             echo "Release tag version $tag_version does not match package version $package_version"
             exit 1
           fi
-          echo "OPENCODE_CHANNEL=edharness" >> "$GITHUB_ENV"
-          echo "OPENCODE_VERSION=$package_version-edharness" >> "$GITHUB_ENV"
-          echo "OPENCODE_CLI_NAME=edharness" >> "$GITHUB_ENV"
+          {
+            echo "OPENCODE_CHANNEL=edharness"
+            echo "OPENCODE_VERSION=$package_version-edharness"
+            echo "OPENCODE_CLI_NAME=edharness"
+          } >> "$GITHUB_ENV"
 
       - name: Build platform binaries
         run: bun run --cwd packages/cli build --outdir=dist/npm
@@ -66,7 +72,31 @@ jobs:
               echo "already published $name@$version"
               return
             fi
-            npm publish "$package" --access public --provenance
+            local stages
+            stages="$(npm stage list "$name" --json 2>/dev/null || true)"
+            if printf '%s' "$stages" | node -e '
+              let input = ""
+              process.stdin.on("data", (chunk) => (input += chunk))
+              process.stdin.on("end", () => {
+                let staged
+                try {
+                  staged = JSON.parse(input)
+                } catch {
+                  process.exit(1)
+                }
+                const containsVersion = (value) => {
+                  if (value === process.argv[1]) return true
+                  if (Array.isArray(value)) return value.some(containsVersion)
+                  if (value && typeof value === "object") return Object.values(value).some(containsVersion)
+                  return false
+                }
+                process.exit(containsVersion(staged) ? 0 : 1)
+              })
+            ' "$version"; then
+              echo "already staged $name@$version"
+              return
+            fi
+            npm stage publish "$package" --access public --provenance
           }
           for package in npm/dist/edharness-*; do
             publish_package "$package"
