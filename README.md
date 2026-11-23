@@ -48,7 +48,7 @@
 Install [Node.js](https://nodejs.org/), npm 11.19 or newer, and Git, then install EdHarness directly from GitHub:
 
 ```bash
-npm install -g --install-links --foreground-scripts 'git+https://github.com/yarp-technologies/edharness.git#edharness-v1'
+npm install -g --install-links --foreground-scripts 'git+https://github.com/yarp-technologies/edharness.git#edharness-v1::path:npm'
 edharness
 ```
 

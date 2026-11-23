@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "edharness",
+  "version": "2.2.5",
+  "description": "AI-powered development tool",
+  "private": true,
+  "bin": {
+    "edharness": "bin/edharness.cjs"
+  },
+  "files": [
+    "bin"
+  ],
+  "scripts": {
+    "prepare": "node prepare.cjs"
+  }
+}
