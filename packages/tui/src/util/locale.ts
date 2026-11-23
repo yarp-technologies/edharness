@@ -3,6 +3,8 @@ import { english } from "@opencode/ui/i18n/en"
 import { dict } from "@opencode/ui/i18n/ru"
 import tuiRussian from "./locale.ru"
 
+export type Language = "en" | "ru"
+
 const russian = new Map(Object.entries(dict))
 const sharedRussian = Object.entries(english).reduce(
   (result, [key, value]) => {
@@ -46,7 +48,11 @@ const dynamicPatterns: readonly [RegExp, string][] = [
 ]
 
 export function text(value: string): string {
-  if ((process.env.EDHARNESS_LANGUAGE ?? "ru").toLowerCase().startsWith("en")) return value
+  return textFor(value)
+}
+
+export function textFor(value: string, language: Language = locale()): string {
+  if (language === "en") return value
   return tuiRussian[value] ?? sharedRussian[value] ?? dynamicRussian(value) ?? value
 }
 
@@ -164,7 +170,7 @@ export function truncateMiddle(str: string, maxLength: number = 35): string {
   return str.slice(0, keepStart) + ellipsis + str.slice(-keepEnd)
 }
 
-function locale() {
+function locale(): Language {
   return (process.env.EDHARNESS_LANGUAGE ?? "ru").toLowerCase().startsWith("en") ? "en" : "ru"
 }
 

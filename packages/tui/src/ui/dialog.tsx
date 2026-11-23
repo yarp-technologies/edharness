@@ -95,6 +95,7 @@ export function DialogHeader(
     title?: JSX.Element
     titleView?: JSX.Element
     closeLabel?: string
+    language?: Locale.Language
     onClose?: () => void
     gap?: number
     /** Muted line below the title. Shown only under the "new-designs" experiment. */
@@ -108,7 +109,7 @@ export function DialogHeader(
     <box flexDirection="row" justifyContent="space-between" gap={props.gap}>
       {props.titleView ?? (
         <text attributes={newDesigns() ? undefined : TextAttributes.BOLD} fg={theme.text.base}>
-          {typeof props.title === "string" ? Locale.text(props.title) : props.title}
+          {typeof props.title === "string" ? Locale.textFor(props.title, props.language) : props.title}
         </text>
       )}
       {props.children}
@@ -122,7 +123,7 @@ export function DialogHeader(
       <box>
         {row()}
         <text fg={theme.text.muted} wrapMode="word">
-          {props.description ? Locale.text(props.description) : props.description}
+          {props.description ? Locale.textFor(props.description, props.language) : props.description}
         </text>
       </box>
     </Show>
@@ -178,6 +179,7 @@ export function DialogBleed(props: ParentProps) {
 
 export type DialogFooterAction = {
   title: string
+  language?: Locale.Language
   /** Literal key label, e.g. "enter". */
   key?: string
   /** Keymap command id whose first shortcut is shown when `key` is not set. The action hides when it has no shortcut. */
@@ -272,7 +274,7 @@ function DialogFooterItem(props: { action: DialogFooterAction; variant: "primary
           fg: props.action.disabled ? theme.text.action.primary.disabled : (props.action.color ?? theme.text.base),
         }}
       >
-        {Locale.text(props.action.title)}
+        {Locale.textFor(props.action.title, props.action.language)}
       </span>
       <Show when={props.action.key}>
         <span style={{ fg: props.action.disabled ? theme.text.action.primary.disabled : (props.action.color ?? key) }}>

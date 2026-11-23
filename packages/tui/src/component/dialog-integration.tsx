@@ -383,7 +383,13 @@ function ExternalStarting(props: {
         dialog.clear()
       })
   })
-  return <OAuthView title={props.method.label} message="Connecting…" />
+  return (
+    <OAuthView
+      title={props.method.label}
+      message="Connecting…"
+      language={props.integration.id === "opened" ? "en" : undefined}
+    />
+  )
 }
 
 async function beginKey(
@@ -651,7 +657,13 @@ function OAuthStarting(props: {
       })
   })
 
-  return <OAuthView title={props.method.label} message="Starting authorization…" />
+  return (
+    <OAuthView
+      title={props.method.label}
+      message="Starting authorization…"
+      language={props.integration.id === "opened" ? "en" : undefined}
+    />
+  )
 }
 
 function OAuthAuto(props: {
@@ -796,6 +808,7 @@ function OAuthAuto(props: {
           url={hideAuthorizationURL ? undefined : props.attempt.url}
           instructions={props.attempt.instructions}
           message={callbackSent() ? "Callback received. Finishing authorization…" : "Waiting for authorization…"}
+          language={props.integration.id === "opened" ? "en" : undefined}
           onCopy={copy}
           onOpen={open}
           onPasteCallback={hideAuthorizationURL && !callbackSent() ? pasteCallback : undefined}
@@ -922,6 +935,7 @@ function OAuthView(props: {
   url?: string
   instructions?: string
   message: string
+  language?: Locale.Language
   onCopy?: () => void
   onOpen?: () => void
   onPasteCallback?: () => void
@@ -929,7 +943,7 @@ function OAuthView(props: {
   const theme = useTheme().surface("dialog")
   return (
     <DialogLayout
-      header={<DialogHeader title={props.title} />}
+      header={<DialogHeader title={props.title} language={props.language} />}
       footer={{
         actions: {
           primary: [
@@ -938,12 +952,17 @@ function OAuthView(props: {
                   {
                     title: props.instructions?.match(OAUTH_CODE) ? "copy code" : "copy link",
                     key: "c",
+                    language: props.language,
                     onTrigger: props.onCopy,
                   },
                 ]
               : []),
-            ...(props.onPasteCallback ? [{ title: "paste callback", key: "p", onTrigger: props.onPasteCallback }] : []),
-            ...(props.onOpen ? [{ title: "open link", key: "enter", onTrigger: props.onOpen }] : []),
+            ...(props.onPasteCallback
+              ? [{ title: "paste callback", key: "p", language: props.language, onTrigger: props.onPasteCallback }]
+              : []),
+            ...(props.onOpen
+              ? [{ title: "open link", key: "enter", language: props.language, onTrigger: props.onOpen }]
+              : []),
           ],
         },
       }}
@@ -951,10 +970,10 @@ function OAuthView(props: {
         <DialogFooter
           actions={{
             secondary: [
-              ...(props.onOpen ? [{ title: "open", key: "o" }] : []),
-              ...(props.onCopy ? [{ title: "copy", key: "c" }] : []),
+              ...(props.onOpen ? [{ title: "open", key: "o", language: props.language }] : []),
+              ...(props.onCopy ? [{ title: "copy", key: "c", language: props.language }] : []),
               ...(props.onPasteCallback
-                ? [{ title: "paste callback", key: "p", onTrigger: props.onPasteCallback }]
+                ? [{ title: "paste callback", key: "p", language: props.language, onTrigger: props.onPasteCallback }]
                 : []),
             ],
           }}
@@ -964,7 +983,7 @@ function OAuthView(props: {
       <box gap={1}>
         <Show when={props.url}>{(url) => <Link href={url()} fg={theme.markdown.link} />}</Show>
         <Show when={props.instructions}>{(instructions) => <text fg={theme.text.muted}>{instructions()}</text>}</Show>
-        <text fg={theme.text.muted}>{Locale.text(props.message)}</text>
+        <text fg={theme.text.muted}>{Locale.textFor(props.message, props.language)}</text>
       </box>
     </DialogLayout>
   )
