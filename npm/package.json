@@ -10,7 +10,9 @@
   "files": [
     "bin"
   ],
-  "scripts": {
-    "prepare": "node prepare.cjs"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yarp-technologies/edharness"
   }
 }

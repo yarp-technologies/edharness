@@ -90,17 +90,17 @@
 
 \divider
 
-\stephead{02}{Установите Node.js и Git}
-  Установите Node.js 24 LTS и Git. npm устанавливается вместе с Node.js.\par
-  \vspace{1.5mm}{\small\href{https://nodejs.org/en/download}{Node.js}\quad\textcolor{Lavender}{/}\quad
-  \href{https://git-scm.com/downloads}{Git}}\hfill
-  {\ttfamily\small node -v\quad npm -v\quad git --version}
+\stephead{02}{Установите Node.js}
+  Установите Node.js 24 LTS. npm устанавливается вместе с Node.js.\par
+  \vspace{1.5mm}{\small\href{https://nodejs.org/en/download}{Скачать Node.js}}\hfill
+  {\ttfamily\small node -v\quad npm -v}
 
 \divider
 
 \stephead{03}{Установите EdHarness}
-  Выполните команду в PowerShell, Terminal или другом терминале:\par\vspace{2mm}
-  \codebox{0.99\linewidth}{\texttt{\fontsize{6.2}{8}\selectfont npm install -g --install-links --foreground-scripts "git+https://github.com/yarp-technologies/edharness.git\#edharness-v1::path:npm"}}
+  После первой публикации пакета выполните команду в терминале:\par\vspace{2mm}
+  \codebox{0.72\linewidth}{\texttt{\large npm install -g edharness}}\par\vspace{2mm}
+  {\small npm автоматически выберет готовую сборку для вашей системы. Во время установки сборка из исходного кода не выполняется.}
 
 \divider
 

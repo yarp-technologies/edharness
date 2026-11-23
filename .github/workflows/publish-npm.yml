@@ -1,0 +1,76 @@
+name: Publish EdHarness npm CLI
+
+on:
+  push:
+    tags:
+      - edharness-v*
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare release version
+        shell: bash
+        run: |
+          tag_version="$(printf '%s' "$GITHUB_REF_NAME" | sed 's/^edharness-v//')"
+          package_version="$(node -p "require('./package.json').version")"
+          if [[ "$tag_version" != "$package_version" ]]; then
+            echo "Release tag version $tag_version does not match package version $package_version"
+            exit 1
+          fi
+          echo "OPENCODE_CHANNEL=edharness" >> "$GITHUB_ENV"
+          echo "OPENCODE_VERSION=$package_version-edharness" >> "$GITHUB_ENV"
+          echo "OPENCODE_CLI_NAME=edharness" >> "$GITHUB_ENV"
+
+      - name: Build platform binaries
+        run: bun run --cwd packages/cli build --outdir=dist/npm
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Prepare npm packages
+        run: node npm/pack.cjs
+
+      - name: Publish platform packages
+        shell: bash
+        run: |
+          publish_package() {
+            local package="$1"
+            local name
+            local version
+            name="$(node -p "require('./$package/package.json').name")"
+            version="$(node -p "require('./$package/package.json').version")"
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "already published $name@$version"
+              return
+            fi
+            npm publish "$package" --access public --provenance
+          }
+          for package in npm/dist/edharness-*; do
+            publish_package "$package"
+          done
+          publish_package npm/dist/edharness
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

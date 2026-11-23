@@ -45,19 +45,15 @@
 
 ### EdHarness CLI installation
 
-Install [Node.js](https://nodejs.org/), npm 11.19 or newer, and Git, then install EdHarness directly from GitHub:
+Install [Node.js](https://nodejs.org/) and npm 11.19 or newer. After the first public npm release, install EdHarness with:
 
-```bash
-npm install -g --install-links --foreground-scripts 'git+https://github.com/yarp-technologies/edharness.git#edharness-v1::path:npm'
-edharness
-```
+    npm install --global edharness
+    edharness
 
-The installation builds EdHarness from the selected Git revision, downloading the project's pinned Bun version if
-necessary. It requires network access and several gigabytes of free disk space, and can take several minutes. npm
-lifecycle scripts must be enabled. `--install-links` ensures npm packages the Git checkout correctly. The CLI includes
-the default skills. Re-run the installation command to update; upstream
-OpenCode automatic updates are disabled for this installation. npm 10 can fail when reinstalling a Git package with
-`ENOTEMPTY`; use npm 11.19 or newer for updates.
+npm selects the prebuilt binary for the current operating system, CPU architecture, and Linux libc. The CLI includes
+the default skills. The npm distribution is not available until its first public release; maintainers publish it by
+creating an `edharness-v<version>` tag matching the root `package.json` version. The release workflow requires the
+GitHub repository secret `NPM_TOKEN`, with permission to publish the EdHarness npm packages.
 
 ### Upstream OpenCode installation
 
