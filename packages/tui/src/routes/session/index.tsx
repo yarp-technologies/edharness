@@ -2032,7 +2032,7 @@ function AssistantFooter(props: { message: SessionMessageAssistant }) {
       <box paddingLeft={3} marginTop={props.message.retry || (props.message.error && !interrupted()) ? 1 : 0}>
         <text>
           <span style={{ fg: props.message.error ? theme.text.muted : local.agent.color(props.message.agent) }}>
-            {Locale.titlecase(props.message.agent)}
+            {Locale.text(Locale.titlecase(props.message.agent))}
           </span>
           <Show when={ctx.terminal.width >= 28}>
             <span style={{ fg: theme.text.muted }}> · {model()}</span>
@@ -2041,7 +2041,7 @@ function AssistantFooter(props: { message: SessionMessageAssistant }) {
             <span style={{ fg: theme.text.muted }}> · {Locale.duration(duration())}</span>
           </Show>
           <Show when={config.data.session.tps && tokensPerSecond()}>
-            {(value) => <span style={{ fg: theme.text.muted }}> · {value().toFixed(1)} tok/s</span>}
+            {(value) => <span style={{ fg: theme.text.muted }}> · {value().toFixed(1)} {Locale.text("tok/s")}</span>}
           </Show>
           <Show when={interrupted()}>
             <span style={{ fg: theme.text.muted }}> · {Locale.text("interrupted")}</span>
@@ -2066,9 +2066,9 @@ function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
     )
   const text = () => {
     if (props.message.type === "agent-switched") {
-      const agent = Locale.titlecase(props.message.agent)
+      const agent = Locale.text(Locale.titlecase(props.message.agent))
       if (props.message.previous && props.message.previous !== props.message.agent)
-        return `Switched agent from ${Locale.titlecase(props.message.previous)} to ${agent}`
+        return `Switched agent from ${Locale.text(Locale.titlecase(props.message.previous))} to ${agent}`
       return `Switched agent to ${agent}`
     }
     if (props.message.type === "model-switched")

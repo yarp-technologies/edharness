@@ -83,6 +83,7 @@ const dict: Readonly<Record<string, string>> = {
   Verbosity: "Подробность",
   "Transcript images": "Изображения в истории",
   TPS: "Токенов в секунду",
+  "tok/s": "ток/с",
   "New session location": "Папка новой сессии",
   Permissions: "Разрешения",
   Mode: "Режим",

@@ -2,6 +2,7 @@ import { stringWidth } from "./string-width"
 import { english } from "@opencode/ui/i18n/en"
 import { dict } from "@opencode/ui/i18n/ru"
 import tuiRussian from "./locale.ru"
+import { duration as compactDuration } from "@opencode/util/duration"
 
 export type Language = "en" | "ru"
 
@@ -118,7 +119,13 @@ export function number(num: number): string {
   return num.toString()
 }
 
-export { duration } from "@opencode/util/duration"
+const durationUnits: Record<string, string> = { ms: "мс", s: "с", m: "м", h: "ч", d: "д" }
+
+export function duration(input: number): string {
+  const value = compactDuration(input)
+  if (locale() === "en") return value
+  return value.replace(/(\d+(?:\.\d+)?)(ms|s|m|h|d)/g, (_, amount: string, unit: string) => amount + durationUnits[unit])
+}
 
 export function truncate(str: string, len: number): string {
   if (str.length <= len) return str
